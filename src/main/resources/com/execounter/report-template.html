@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Execution Count Report</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Prism Theme -->
+    <link id="prism-css" href="" rel="stylesheet" />
+    
+    <style>
+        :root {
+            /* Theme Colors */
+            --bg-color: #0f172a;
+            --sidebar-bg: #1e293b;
+            --text-color: #e2e8f0;
+            --border-color: #334155;
+            --accent-color: #3b82f6;
+            --hover-color: #334155;
+            --code-bg: #1e1e1e;
+            --gutter-bg: #1e1e1e;
+            --gutter-border: #334155;
+            --gutter-text: #64748b;
+            --selection-bg: #2d3748;
+            --stripe-color: rgba(255, 255, 255, 0.03);
+            --flash-color: rgba(59, 130, 246, 0.3);
+            
+            /* Fonts */
+            --ui-font: 'Inter', system-ui, -apple-system, sans-serif;
+            --code-font: 'JetBrains Mono', 'Consolas', monospace;
+        }
+
+        body.light-mode {
+            --bg-color: #f8fafc;
+            --sidebar-bg: #ffffff;
+            --text-color: #334155;
+            --border-color: #e2e8f0;
+            --accent-color: #2563eb;
+            --hover-color: #f1f5f9;
+            --code-bg: #ffffff;
+            --gutter-bg: #f8fafc;
+            --gutter-border: #e2e8f0;
+            --gutter-text: #94a3b8;
+            --selection-bg: #e2e8f0;
+            --stripe-color: rgba(0, 0, 0, 0.03);
+            --flash-color: rgba(37, 99, 235, 0.2);
+        }
+
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            font-family: var(--ui-font); 
+            background: var(--bg-color); 
+            color: var(--text-color); 
+            height: 100vh; 
+            display: flex; 
+            overflow: hidden; 
+        }
+        
+        #app { display: flex; width: 100%; height: 100%; }
+        
+        .sidebar { 
+            width: 350px; 
+            background: var(--sidebar-bg); 
+            border-right: 1px solid var(--border-color); 
+            display: flex; 
+            flex-direction: column; 
+            flex-shrink: 0; 
+            z-index: 20; 
+        }
+        .sidebar-header { padding: 16px; border-bottom: 1px solid var(--border-color); font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+        .file-tree { flex: 1; overflow-y: auto; padding: 10px; }
+        
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-color); min-width: 0; }
+        .toolbar {
+            padding: 10px 20px; 
+            border-bottom: 1px solid var(--border-color); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: var(--sidebar-bg); 
+            z-index: 10;
+        }
+        
+        .code-scroller {
+            flex: 1; 
+            overflow: auto; 
+            display: flex; 
+            position: relative; 
+            background: var(--code-bg); 
+            scroll-behavior: smooth;
+            padding-top: 10px;
+        }
+        
+        .use-code-font {
+            font-family: var(--code-font) !important;
+            font-size: 13px !important;
+            line-height: 24px !important;
+            font-variant-ligatures: none;
+        }
+
+        .gutter {
+            position: sticky; 
+            left: 0; 
+            z-index: 5; 
+            width: 80px; 
+            background: var(--gutter-bg); 
+            border-right: 1px solid var(--gutter-border); 
+            flex-shrink: 0; 
+            display: flex; 
+            flex-direction: column; 
+            user-select: none; 
+            min-height: 100%;
+            padding-bottom: 10px;
+        }
+        
+        .line-row {
+            height: 24px; 
+            display: grid;
+            grid-template-columns: 1fr 30px; 
+            gap: 4px;
+            padding-right: 6px;
+            padding-left: 6px;
+            align-items: center;
+        }
+        
+        .line-row:nth-child(even) {
+            background-color: var(--stripe-color);
+        }
+        
+        .ln {
+            color: var(--gutter-text); 
+            font-size: 11px; 
+            text-align: right; 
+            opacity: 0.7;
+        }
+        
+        .cnt {
+            font-size: 10px; 
+            padding: 0 4px; 
+            border-radius: 3px; 
+            color: white; 
+            text-align: center; 
+            font-weight: 600;
+            height: 18px;
+            line-height: 18px;
+            min-width: 24px;
+        }
+        
+        .cnt-placeholder { width: 24px; height: 18px; }
+        
+        .source-code {
+            flex: 1; 
+            min-width: 0; 
+            padding-left: 10px; 
+            padding-bottom: 10px;
+            background-image: linear-gradient(
+                to bottom,
+                transparent 50%,
+                var(--stripe-color) 50%
+            );
+            background-size: 100% 48px;
+            background-position: 0 0;
+        }
+        
+        .source-code pre {
+            margin: 0 !important; 
+            padding: 0 !important; 
+            background: transparent !important; 
+            text-shadow: none !important; 
+            overflow: visible !important;
+            border: none !important;
+            box-shadow: none !important;
+            background-image: none !important;
+        }
+        
+        code[class*="language-"], pre[class*="language-"] {
+            background: transparent !important;
+            font-family: var(--code-font) !important; 
+            font-size: 13px !important; 
+            line-height: 24px !important;
+            white-space: pre !important; 
+            display: block !important;
+        }
+
+        .tree-item {
+            cursor: pointer; 
+            padding: 6px 8px; 
+            border-radius: 4px; 
+            display: flex; 
+            align-items: center; 
+            font-size: 13px; 
+            color: var(--text-color); 
+            user-select: none; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            transition: background 0.3s;
+        }
+        .tree-item:hover { background: var(--hover-color); }
+        .tree-item.active { background: var(--accent-color); color: white; }
+        .tree-item.flash { background: var(--flash-color); transition: background 0s; }
+        
+        .tree-item .icon { margin-right: 8px; opacity: 0.7; }
+        .tree-group { margin-left: 12px; border-left: 1px solid var(--border-color); }
+
+        ::-webkit-scrollbar { width: 12px; height: 12px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 6px; border: 3px solid var(--bg-color); background-clip: content-box; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-color); }
+
+        .badge { background: var(--accent-color); color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; margin-left: auto; }
+        .theme-toggle { background: none; border: 1px solid var(--border-color); color: var(--text-color); padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s; }
+        .theme-toggle:hover { background: var(--hover-color); }
+        
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--gutter-text); font-size: 14px; gap: 10px; }
+        
+        .heatmap-legend { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--gutter-text); margin-right: 15px; }
+        .heatmap-bar { width: 100px; height: 8px; border-radius: 4px; background: linear-gradient(to right, hsla(120, 85%, 45%, 0.85), hsla(0, 85%, 45%, 0.85)); }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <span>Project Files</span>
+                <span class="badge">{{ totalFiles }}</span>
+            </div>
+            <div class="file-tree">
+                <tree-node 
+                    v-for="node in fileTree" 
+                    :key="node.path"
+                    :node="node" 
+                    :selected-path="selectedFile?.path"
+                    @select="selectFile">
+                </tree-node>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="toolbar">
+                <div style="font-weight: 500; display: flex; align-items: center; gap: 10px;">
+                    <span class="icon">📄</span>
+                    <span v-if="selectedFile">{{ selectedFile.path }}</span>
+                    <span v-else>No file selected</span>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span :title="liveError" style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: help;">
+                        <span :style="{ color: isLive ? '#4ade80' : (liveError ? '#ef4444' : '#94a3b8') }">●</span>
+                        <span style="color: var(--gutter-text);">{{ isLive ? 'Live' : 'Offline' }}</span>
+                    </span>
+                    
+                    <div class="heatmap-legend" v-if="globalMax > 0">
+                        <span>1</span>
+                        <div class="heatmap-bar" :title="'Max: ' + formatBigCount(globalMax)"></div>
+                        <span>{{ formatCount(globalMax) }}</span>
+                    </div>
+
+                    <span v-if="totalExecutions > 0" style="font-size: 12px; color: var(--gutter-text);">
+                        Total: <strong>{{ formatBigCount(totalExecutions) }}</strong>
+                    </span>
+                    
+                    <button class="theme-toggle" @click="toggleTheme">
+                        {{ isDarkMode ? '☀️' : '🌙' }}
+                    </button>
+                </div>
+            </div>
+
+            <div v-if="selectedFile" class="code-scroller">
+                <div class="gutter use-code-font">
+                    <div v-for="(line, index) in selectedFile.lines" :key="index" class="line-row">
+                        <span class="ln">{{ index + 1 }}</span>
+                        <span v-if="getExecutionCount(index + 1) > 0" 
+                              class="cnt" 
+                              :style="{ backgroundColor: getHeatmapColor(getExecutionCount(index + 1)) }"
+                              :title="getExecutionCount(index + 1) + ' executions'">
+                            {{ formatCount(getExecutionCount(index + 1)) }}
+                        </span>
+                        <span v-else class="cnt-placeholder"></span>
+                    </div>
+                </div>
+                
+                <div class="source-code use-code-font">
+                    <pre><code class="language-java" v-html="highlightedCode"></code></pre>
+                </div>
+            </div>
+            
+            <div v-else class="empty-state">
+                <div style="font-size: 48px;">📊</div>
+                <div>Select a source file to view execution metrics.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.REPORT_DATA = /*DATA_MARKER*/ [];
+        window.REPORT_GENERATED_AT = /*GENERATED_AT*/ 0;
+        window.REPORT_JSON = "/*JSON_FILE*/";
+        window.REPORT_JSONP = "/*JSONP_FILE*/";
+    </script>
+    <script src="report-app.js"></script>
+</body>
+</html>
