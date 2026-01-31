@@ -61,16 +61,31 @@ const pageLoadedAt = Date.now();
 let lastUpdate =
   Math.max(initialPayload.generatedAt, window.REPORT_GENERATED_AT || 0, pageLoadedAt);
 
+const formatCount = (count: number) => {
+  if (count >= 1000000) return (count / 1000000).toFixed(2) + 'M';
+  if (count >= 10000) return (count / 1000).toFixed(1) + 'k';
+  return count.toString();
+};
+
+const formatBigCount = (count: number) => new Intl.NumberFormat().format(count);
+
+const lastTotals = new Map<string, number>();
+
+const ICONS = {
+  FOLDER_OPEN: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 4.5V13.5H14.5V6.5H8.5L6.5 4.5H1.5Z" fill="#9AA7B0" stroke="#9AA7B0" stroke-width="1" stroke-linejoin="round"/><path d="M1.5 6.5L14.5 6.5L13.5 13.5L2.5 13.5L1.5 6.5Z" fill="#C0C7CE"/></svg>`,
+  FOLDER_CLOSED: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 3.5V12.5H14.5V5.5H8.5L6.5 3.5H1.5Z" fill="#9AA7B0" stroke="#9AA7B0" stroke-width="1" stroke-linejoin="round"/></svg>`,
+  JAVA_FILE: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="12" height="12" rx="2" fill="#4078C0"/><text x="4" y="11" fill="white" font-family="Arial" font-size="9" font-weight="bold">C</text></svg>`,
+  PROJECT: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="12" height="12" rx="1" fill="#62B543"/><path d="M5 5H11V11H5V5Z" fill="white" fill-opacity="0.3"/><text x="5" y="11" fill="white" font-family="Arial" font-size="8" font-weight="bold">P</text></svg>`
+};
+
 const buildTree = (files: FileData[]): TreeNode[] => {
   const root: TreeNode[] = [];
   const sortedFiles = [...files].sort((a, b) => {
     const projectA = (a.project || 'unknown').toLowerCase();
     const projectB = (b.project || 'unknown').toLowerCase();
     const projectCompare = projectA.localeCompare(projectB);
-    if (projectCompare !== 0) {
-      return projectCompare;
-    }
-    return a.path.localeCompare(b.path);
+    if (projectCompare !== 0) return projectCompare;
+    return a.path.toLowerCase().localeCompare(b.path.toLowerCase());
   });
 
   sortedFiles.forEach((file) => {
@@ -99,18 +114,23 @@ const buildTree = (files: FileData[]): TreeNode[] => {
       }
 
       if (index === segments.length - 1) {
-        const oldTotal = node.totalCount || 0;
         node.children = null;
         node.filePath = file.path;
-        node.project = project;
+        node.project = file.project;
         node.lines = file.content.split(/\r?\n/);
         node.counts = file.counts;
         const sum = Object.values(file.counts).reduce((a, b) => a + b, 0);
         node.totalCount = sum;
         node.formattedTotal = formatCount(sum);
+
+        const key = `${project}::${file.path}`;
+        const oldTotal = lastTotals.get(key) || 0;
         if (sum > oldTotal) {
-          node.flash = true;
-          setTimeout(() => (node.flash = false), 1000);
+          if (oldTotal > 0) {
+            node.flash = true;
+            setTimeout(() => (node.flash = false), 1000);
+          }
+          lastTotals.set(key, sum);
         }
       } else if (node.children) {
         node.project = project;
@@ -119,6 +139,24 @@ const buildTree = (files: FileData[]): TreeNode[] => {
     });
   });
 
+  const flatten = (nodes: TreeNode[]) => {
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      if (node.children) {
+        if (node.depth > 0 && node.children.length === 1 && node.children[0].children) {
+          const child = node.children[0];
+          node.name = node.name + '.' + child.name;
+          node.path = child.path;
+          node.children = child.children;
+          i--;
+          continue;
+        }
+        flatten(node.children);
+      }
+    }
+  };
+
+  flatten(root);
   return root;
 };
 
@@ -155,14 +193,6 @@ const updateTreeData = (nodes: TreeNode[], newFiles: FileData[]) => {
   traverse(nodes);
 };
 
-const formatCount = (count: number) => {
-  if (count >= 1000000) return (count / 1000000).toFixed(2) + 'M';
-  if (count >= 10000) return (count / 1000).toFixed(1) + 'k';
-  return count.toString();
-};
-
-const formatBigCount = (count: number) => new Intl.NumberFormat().format(count);
-
 const calculateHeatmapColor = (count: number, max: number) => {
   if (!count) return 'transparent';
   const logCount = Math.log1p(count);
@@ -192,6 +222,12 @@ const initTheme = () => {
   }
 };
 
+const collapsedFolders = ref<Set<string>>(new Set(JSON.parse(localStorage.getItem('collapsedFolders') || '[]')));
+
+const saveCollapsedFolders = () => {
+  localStorage.setItem('collapsedFolders', JSON.stringify(Array.from(collapsedFolders.value)));
+};
+
 const TreeNode = defineComponent({
   name: 'TreeNode',
   props: {
@@ -200,25 +236,58 @@ const TreeNode = defineComponent({
   },
   emits: ['select'],
   setup(props, { emit }) {
-    const isOpen = ref(true);
     const isFolder = computed(() => !!props.node.children && props.node.children.length > 0);
+    const isOpen = computed(() => !collapsedFolders.value.has(props.node.path));
+    
+    const icon = computed(() => {
+      if (!isFolder.value) return ICONS.JAVA_FILE;
+      if (props.node.depth === 0) return ICONS.PROJECT;
+      return isOpen.value ? ICONS.FOLDER_OPEN : ICONS.FOLDER_CLOSED;
+    });
+
     const toggle = () => {
-      if (isFolder.value) isOpen.value = !isOpen.value;
-      else emit('select', props.node);
+      if (isFolder.value) {
+        if (collapsedFolders.value.has(props.node.path)) {
+          collapsedFolders.value.delete(props.node.path);
+        } else {
+          collapsedFolders.value.add(props.node.path);
+        }
+        saveCollapsedFolders();
+      } else {
+        emit('select', props.node);
+      }
     };
-    return { isOpen, isFolder, toggle };
+
+    const handleChevronClick = (e: MouseEvent) => {
+      e.stopPropagation();
+      if (isFolder.value) {
+        if (collapsedFolders.value.has(props.node.path)) {
+          collapsedFolders.value.delete(props.node.path);
+        } else {
+          collapsedFolders.value.add(props.node.path);
+        }
+        saveCollapsedFolders();
+      }
+    };
+
+    return { isOpen, isFolder, toggle, handleChevronClick, icon };
   },
   template: `
-    <div>
+    <div class="tree-node-wrapper" :class="{ 'is-folder': isFolder, 'is-open': isOpen }">
       <div
         class="tree-item"
         :class="{ active: node.path === selectedPath, flash: node.flash }"
         @click="toggle"
-        :style="{ paddingLeft: node.depth * 12 + 'px' }">
-        <span class="icon">{{ isFolder ? (isOpen ? '📂' : '📁') : '📄' }}</span>
-        <span style="flex:1; overflow:hidden; text-overflow:ellipsis;">{{ node.name }}</span>
-        <span v-if="!isFolder && node.totalCount > 0"
-              style="font-size:10px; color:var(--gutter-text); margin-left:6px;">
+        :style="{ paddingLeft: (node.depth * 6 + 4) + 'px' }">
+        
+        <span v-if="isFolder" class="chevron" @click="handleChevronClick">
+          {{ isOpen ? '▾' : '▸' }}
+        </span>
+        <span v-else class="chevron-spacer"></span>
+
+        <span class="icon" v-html="icon"></span>
+        <span class="node-name">{{ node.name }}</span>
+        <span v-if="!isFolder && node.totalCount > 0" class="node-count">
           {{ node.formattedTotal }}
         </span>
       </div>
@@ -243,12 +312,44 @@ createApp({
   template: appTemplate,
   setup() {
     const rawData = ref(initialPayload.files);
-    const fileTree = ref<TreeNode[]>(buildTree(rawData.value));
+    const showAll = ref(localStorage.getItem('showAllSources') === 'true');
+    const filteredFiles = computed(() => {
+      if (showAll.value) return rawData.value;
+      return rawData.value.filter((f) => Object.values(f.counts).some((c) => c > 0));
+    });
+    const fileTree = computed(() => buildTree(filteredFiles.value));
     const selectedFile = ref<TreeNode | null>(null);
     const highlightedCode = ref('');
     const isDarkMode = ref(true);
     const isLive = ref(false);
     const liveError = ref<string | null>(null);
+
+    const sidebarWidth = ref(parseInt(localStorage.getItem('sidebarWidth') || '300'));
+    const isResizing = ref(false);
+    const treeContainer = ref<HTMLElement | null>(null);
+
+    const startResizing = () => {
+      isResizing.value = true;
+      document.addEventListener('mousemove', handleResizing);
+      document.addEventListener('mouseup', stopResizing);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    };
+
+    const handleResizing = (e: MouseEvent) => {
+      if (!isResizing.value) return;
+      const newWidth = Math.max(200, Math.min(800, e.clientX));
+      sidebarWidth.value = newWidth;
+    };
+
+    const stopResizing = () => {
+      isResizing.value = false;
+      localStorage.setItem('sidebarWidth', sidebarWidth.value.toString());
+      document.removeEventListener('mousemove', handleResizing);
+      document.removeEventListener('mouseup', stopResizing);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
     const globalMax = computed(() => {
       let max = 1;
       rawData.value.forEach((f) => {
@@ -258,7 +359,7 @@ createApp({
       });
       return max;
     });
-    const totalFiles = computed(() => rawData.value.length);
+    const totalFiles = computed(() => filteredFiles.value.length);
     const totalExecutions = computed(() =>
       rawData.value.reduce((sum, file) => sum + Object.values(file.counts).reduce((a, b) => a + b, 0), 0)
     );
@@ -270,6 +371,11 @@ createApp({
       document.body.classList.toggle('light-mode', !isDarkMode.value);
       localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light');
       setPrismTheme(isDarkMode.value);
+    };
+
+    const toggleShowAll = () => {
+      showAll.value = !showAll.value;
+      localStorage.setItem('showAllSources', showAll.value.toString());
     };
 
     const selectFile = (node: TreeNode) => {
@@ -311,11 +417,18 @@ createApp({
       const incomingAt = generatedAt || payload.generatedAt || 0;
       if (incomingAt && incomingAt <= lastUpdate) return;
       if (!incomingAt && lastUpdate > 0) return;
+      
+      const scrollPos = treeContainer.value?.scrollTop || 0;
       rawData.value = payload.files;
-      updateTreeData(fileTree.value, payload.files);
       isLive.value = true;
       liveError.value = null;
       lastUpdate = incomingAt || Date.now();
+
+      nextTick(() => {
+        if (treeContainer.value) {
+          treeContainer.value.scrollTop = scrollPos;
+        }
+      });
     };
 
     window.loadExecutionData = loadExecutionData;
@@ -411,6 +524,12 @@ createApp({
     return {
       fileTree,
       selectedFile,
+      showAll,
+      toggleShowAll,
+      sidebarWidth,
+      isResizing,
+      startResizing,
+      treeContainer,
       highlightedCode,
       totalFiles,
       totalExecutions,

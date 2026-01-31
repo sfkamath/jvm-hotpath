@@ -210,6 +210,7 @@ public class PrepareAgentMojo extends AbstractMojo {
 
     project.getProperties().setProperty(propertyName, agentString);
     getLog().info("JVM Hotpath configured.");
+    getLog().info("Agent String: " + agentString);
     if (verbose) {
       getLog().info("Packages: " + finalPackages);
       getLog().info("Sourcepath: " + finalSourcepath);

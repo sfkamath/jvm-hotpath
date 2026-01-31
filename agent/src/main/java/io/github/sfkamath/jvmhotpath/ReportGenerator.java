@@ -9,17 +9,27 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 /** Generates HTML report showing execution counts per line using a Vue.js template. */
 public final class ReportGenerator {
 
+  private static final Logger logger = Logger.getLogger(ReportGenerator.class.getName());
   private static final ObjectMapper mapper = new ObjectMapper();
 
   /** Generates the report from current memory state. */
-  public static void generateHtmlReport(String outputPath, String sourcePath) throws IOException {
-    List<FileData> data = collectData(sourcePath);
+  public static void generateHtmlReport(String outputPath, String sourcePath, boolean verbose) throws IOException {
+    List<FileData> data = collectData(sourcePath, verbose);
     ReportPayload payload = new ReportPayload(System.currentTimeMillis(), data);
     String jsonData = mapper.writeValueAsString(payload);
 
@@ -34,58 +44,86 @@ public final class ReportGenerator {
     Files.writeString(paths.jsonpPath, jsonpContent);
 
     // 3. Render HTML (embedded data for initial load)
-    renderReport(payload, paths);
+    renderReport(payload, paths, verbose);
   }
 
   /** Regenerates the report from a saved JSON data file. */
   public static void regenerateReport(String jsonPath, String outputPath) throws IOException {
     ReportPayload payload = readPayload(jsonPath);
-    renderReport(payload, resolveReportPaths(outputPath));
+    renderReport(payload, resolveReportPaths(outputPath), true);
   }
 
-  private static List<FileData> collectData(String sourcePath) throws IOException {
+  static List<FileData> collectData(String sourcePath, boolean verbose) throws IOException {
     Map<String, Map<Integer, Long>> allCounters = ExecutionCountStore.getAllCountersSnapshot();
-    List<FileData> fileDataList = new ArrayList<>();
-
-    if (allCounters.isEmpty()) {
-      return fileDataList;
-    }
-
-    Map<String, Map<Integer, Long>> groupedCounters = new HashMap<>();
     List<SourceRoot> roots = parseSourceRoots(sourcePath);
+    Map<String, FileData> fileDataMap = new HashMap<>();
 
-    for (Map.Entry<String, Map<Integer, Long>> classEntry : allCounters.entrySet()) {
-      String className = classEntry.getKey();
-      String topLevelClass =
-          className.contains("$") ? className.substring(0, className.indexOf('$')) : className;
-
-      Map<Integer, Long> targetMap =
-          groupedCounters.computeIfAbsent(topLevelClass, k -> new HashMap<>());
-      for (Map.Entry<Integer, Long> lineEntry : classEntry.getValue().entrySet()) {
-        targetMap.merge(lineEntry.getKey(), lineEntry.getValue(), Long::sum);
+    // 1. Initialize with all source files from disk (0 counts)
+    for (SourceRoot root : roots) {
+      try (Stream<Path> walker = Files.walk(root.path())) {
+        walker
+            .filter(Files::isRegularFile)
+            .filter(p -> p.toString().endsWith(".java"))
+            .forEach(
+                p -> {
+                  String relativePath = root.path().relativize(p).toString().replace('\\', '/');
+                  String content = "";
+                  try {
+                    content = Files.readString(p);
+                  } catch (IOException ignored) {
+                  }
+                  fileDataMap.put(
+                      root.project() + "::" + relativePath,
+                      new FileData(relativePath, new HashMap<>(), content, root.project()));
+                });
       }
     }
 
-    for (Map.Entry<String, Map<Integer, Long>> entry : groupedCounters.entrySet()) {
-      String className = entry.getKey();
-      Map<Integer, Long> counts = entry.getValue();
+    // 2. Merge execution counts
+    if (!allCounters.isEmpty()) {
+      Map<String, Map<Integer, Long>> groupedCounters = new HashMap<>();
+      for (Map.Entry<String, Map<Integer, Long>> classEntry : allCounters.entrySet()) {
+        String className = classEntry.getKey();
+        String topLevelClass =
+            className.contains("$") ? className.substring(0, className.indexOf('$')) : className;
 
-      String relativePath = className.replace('.', '/') + ".java";
-      SourceFile sourceFile = findSourceContent(roots, className, relativePath);
-      String content = sourceFile.content();
-      String project = sourceFile.project();
+        Map<Integer, Long> targetMap =
+            groupedCounters.computeIfAbsent(topLevelClass, k -> new HashMap<>());
+        for (Map.Entry<Integer, Long> lineEntry : classEntry.getValue().entrySet()) {
+          targetMap.merge(lineEntry.getKey(), lineEntry.getValue(), Long::sum);
+        }
+      }
 
-      fileDataList.add(new FileData(relativePath, counts, content, project));
+      for (Map.Entry<String, Map<Integer, Long>> entry : groupedCounters.entrySet()) {
+        String className = entry.getKey();
+        Map<Integer, Long> counts = entry.getValue();
+        String relativePath = className.replace('.', '/') + ".java";
+
+        // Try to find existing FileData or create new if not found in disk scan
+        SourceFile sourceFile = findSourceContent(roots, className, relativePath);
+        String project = sourceFile.project();
+        String key = project + "::" + relativePath;
+
+        FileData data =
+            fileDataMap.computeIfAbsent(
+                key, k -> new FileData(relativePath, new HashMap<>(), sourceFile.content(), project));
+        
+        // Merge with any existing counts
+        Map<Integer, Long> currentCounts = new HashMap<>(data.getCounts());
+        counts.forEach((line, val) -> currentCounts.merge(line, val, Long::sum));
+        data.setCounts(currentCounts);
+      }
     }
 
+    List<FileData> fileDataList = new ArrayList<>(fileDataMap.values());
     fileDataList.sort(Comparator.comparing(ReportGenerator.FileData::getPath));
     return fileDataList;
   }
 
-  private static void renderReport(ReportPayload payload, ReportPaths paths) throws IOException {
+  private static void renderReport(ReportPayload payload, ReportPaths paths, boolean verbose) throws IOException {
     String template = loadTemplate();
     if (template == null) {
-      System.err.println("Could not load report template.");
+      logger.severe("Could not load report template.");
       return;
     }
 
@@ -100,7 +138,9 @@ public final class ReportGenerator {
             .replace("/*JSONP_FILE*/", paths.jsonpFileName);
 
     Files.writeString(paths.htmlPath, finalHtml);
-    System.out.println("Report written to: " + paths.htmlPath);
+    if (verbose) {
+      logger.info("Report written to: file:///" + paths.htmlPath.toAbsolutePath().toString().replace("\\", "/"));
+    }
 
     copyResource(paths.outputDir, "/io/github/sfkamath/jvmhotpath/report-app.js", "report-app.js");
   }
@@ -140,14 +180,17 @@ public final class ReportGenerator {
       return List.of();
     }
 
-    return Arrays.stream(sourcePath.split(File.pathSeparator))
-        .map(String::trim)
-        .filter(s -> !s.isEmpty())
-        .map(Path::of)
-        .filter(Files::exists)
-        .filter(Files::isDirectory)
-        .map(root -> new SourceRoot(root, deriveProjectName(root)))
-        .toList();
+    Map<Path, SourceRoot> deduplicated = new LinkedHashMap<>();
+    for (String s : sourcePath.split(File.pathSeparator)) {
+      String trimmed = s.trim();
+      if (trimmed.isEmpty()) continue;
+      
+      Path path = Path.of(trimmed).toAbsolutePath().normalize();
+      if (Files.exists(path) && Files.isDirectory(path)) {
+        deduplicated.putIfAbsent(path, new SourceRoot(path, deriveProjectName(path)));
+      }
+    }
+    return new ArrayList<>(deduplicated.values());
   }
 
   private static String deriveProjectName(Path root) {
@@ -194,7 +237,7 @@ public final class ReportGenerator {
       throws IOException {
     try (InputStream is = ReportGenerator.class.getResourceAsStream(resourceName)) {
       if (is == null) {
-        System.err.println("Missing resource: " + resourceName);
+        logger.log(Level.SEVERE, "Missing resource: {0}", resourceName);
         return;
       }
       Path dest = targetDir.resolve(fileName);

@@ -77,11 +77,11 @@ Just like the manual agent, the plugin can handle multiple source roots and pack
 <configuration>
     <!-- Your project's groupId and main sources are auto-detected. -->
     <!-- Add extra packages to instrument (comma-separated): -->
-    <packages>com.example.generated,com.example.other.module</packages>
+    <packages>com.example,com.other.module</packages>
     
     <!-- Add extra source roots (joined with the platform separator : or ;): -->
     <sourcepath>
-        target/generated-sources/openapi/src/main/java:../other-module/src/main/java
+        module-a/src/main/java:module-a/target/generated-sources:module-b/src/main/java
     </sourcepath>
 </configuration>
 ```
@@ -90,8 +90,8 @@ Just like the manual agent, the plugin can handle multiple source roots and pack
 
 ```bash
 mvn verify \
-  -Djvm-hotpath.packages=com.example.generated,com.example.other.module \
-  -Djvm-hotpath.sourcepath=target/generated-sources/openapi/src/main/java:../other-module/src/main/java
+  -Djvm-hotpath.packages=com.example,com.other.module \
+  -Djvm-hotpath.sourcepath=module-a/src/main/java:module-a/target/generated-sources:module-b/src/main/java
 ```
 
 *Note: Use `:` (macOS/Linux) or `;` (Windows) as the path separator.*
@@ -111,17 +111,27 @@ Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
             <plugin>
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
+                <version>0.1.0</version>
                 <executions>
                     <execution>
                         <goals><goal>prepare-agent</goal></goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <flushInterval>5</flushInterval>
+                    <packages>com.example,com.other.module</packages>
+                    <sourcepath>
+                        module-a/src/main/java:module-a/target/generated-sources:module-b/src/main/java
+                    </sourcepath>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
                 <configuration>
                     <executable>java</executable>
+                    <!-- Automatically picks up the agent from ${argLine} and your main class -->
                     <commandlineArgs>${argLine} -classpath %classpath ${exec.mainClass}</commandlineArgs>
                 </configuration>
             </plugin>
@@ -132,7 +142,7 @@ Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
 
 Then run:
 ```bash
-mvn jvm-hotpath:prepare-agent exec:exec -Pinstrument
+mvn jvm-hotpath:prepare-agent exec:exec -Pinstrument -Dexec.mainClass="com.example.Main"
 ```
 
 ### Advanced Configuration
@@ -184,7 +194,7 @@ The JAR will be located at `agent/target/jvm-hotpath-agent-0.1.0.jar`.
 **Run with Agent:**
 
 ```bash
-java -javaagent:agent/target/jvm-hotpath-agent-0.1.0.jar=packages=com.example,flushInterval=5,output=report.html,sourcepath=src/main/java -jar your-app.jar
+java -javaagent:agent/target/jvm-hotpath-agent-0.1.0.jar=packages=com.example,com.other.module,flushInterval=5,output=report.html,sourcepath=module-a/src/main/java:module-b/src/main/java -jar your-app.jar
 ```
 
 #### Multi-source invocation
@@ -218,7 +228,7 @@ module-b
 | `flushInterval` | Interval in seconds to regenerate the report while the app is running. | 0 (no auto-flush) |
 | `output` | Path to the generated HTML report. | `execution-report.html` |
 | `sourcepath` | Path to the root of the Java source files for code overlay. | (none) |
-| `verbose` | If `true`, prints instrumentation details to stdout. | `false` |
+| `verbose` | If `true`, prints instrumentation details and flush success messages (with clickable file URLs) to stdout. | `false` |
 | `keepAlive` | Keep the JVM alive via a heartbeat thread (useful for scheduled apps without a server). | `true` |
 
 ## Viewing the Report

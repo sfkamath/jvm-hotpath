@@ -13,6 +13,7 @@
     <modules>
         <module>agent</module>
         <module>maven-plugin</module>
+        <module>integration-tests</module>
     </modules>
 
     <properties>
@@ -20,6 +21,7 @@
         <spotless-maven-plugin.version>3.2.1</spotless-maven-plugin.version>
         <asm.version>9.9.1</asm.version>
         <maven.compiler.release>21</maven.compiler.release>
+        <junit.version>5.12.0</junit.version>
     </properties>
 
     <dependencyManagement>
@@ -28,6 +30,12 @@
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-agent</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

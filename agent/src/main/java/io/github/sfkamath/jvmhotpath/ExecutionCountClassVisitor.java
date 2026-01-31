@@ -14,6 +14,11 @@ public class ExecutionCountClassVisitor extends ClassVisitor {
     super(Opcodes.ASM9, cv);
   }
 
+  public ExecutionCountClassVisitor(ClassVisitor cv, String className) {
+    super(Opcodes.ASM9, cv);
+    this.className = className.replace('/', '.');
+  }
+
   @Override
   public void visit(
       int version,
@@ -22,7 +27,9 @@ public class ExecutionCountClassVisitor extends ClassVisitor {
       String signature,
       String superName,
       String[] interfaces) {
-    this.className = name.replace('/', '.');
+    if (this.className == null) {
+      this.className = name.replace('/', '.');
+    }
     super.visit(version, access, name, signature, superName, interfaces);
   }
 

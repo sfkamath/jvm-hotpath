@@ -1,0 +1,126 @@
+package io.github.sfkamath.jvmhotpath;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+class ReportGeneratorTest {
+
+    @BeforeEach
+    void setUp() {
+        ExecutionCountStore.reset();
+    }
+
+    @Test
+    void testCollectDataWithMultipleRoots() throws IOException {
+        Path root1 = Files.createTempDirectory("root1");
+        Path root2 = Files.createTempDirectory("root2");
+        
+        try {
+            Path file1 = root1.resolve("com/example/File1.java");
+            Files.createDirectories(file1.getParent());
+            Files.writeString(file1, "package com.example; public class File1 {}");
+
+            Path file2 = root2.resolve("org/test/File2.java");
+            Files.createDirectories(file2.getParent());
+            Files.writeString(file2, "package org.test; public class File2 {}");
+
+            ExecutionCountStore.recordExecution("com.example.File1", 10);
+            
+            String sourcePath = root1.toAbsolutePath().toString() + File.pathSeparator + root2.toAbsolutePath().toString();
+            List<ReportGenerator.FileData> data = ReportGenerator.collectData(sourcePath, false);
+            
+            assertEquals(2, data.size());
+            
+            ReportGenerator.FileData fd1 = data.stream().filter(f -> f.getPath().equals("com/example/File1.java")).findFirst().get();
+            assertEquals(1L, fd1.getCounts().get(10));
+            assertTrue(fd1.getProject().startsWith("root1"), "Project name should start with root1, but was: " + fd1.getProject());
+
+            ReportGenerator.FileData fd2 = data.stream().filter(f -> f.getPath().equals("org/test/File2.java")).findFirst().get();
+            assertTrue(fd2.getCounts().isEmpty());
+            assertTrue(fd2.getProject().startsWith("root2"), "Project name should start with root2, but was: " + fd2.getProject());
+            
+        } finally {
+            deleteRecursive(root1.toFile());
+            deleteRecursive(root2.toFile());
+        }
+    }
+
+    @Test
+    void testAbsoluteNormalizationDeduplication() throws IOException {
+        Path root = Files.createTempDirectory("dedupe");
+        try {
+            Path file = root.resolve("com/Main.java");
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, "content");
+
+            String path1 = root.toAbsolutePath().toString();
+            String path2 = root.toAbsolutePath().toString() + "/./";
+            
+            List<ReportGenerator.FileData> data = ReportGenerator.collectData(path1 + File.pathSeparator + path2, false);
+            assertEquals(1, data.size());
+        } finally {
+            deleteRecursive(root.toFile());
+        }
+    }
+
+    @Test
+    void testGenerateHtmlReport() throws IOException {
+        Path outputDir = Files.createTempDirectory("output");
+        Path sourceRoot = Files.createTempDirectory("source");
+        try {
+            Path javaFile = sourceRoot.resolve("Test.java");
+            Files.writeString(javaFile, "public class Test {}");
+            ExecutionCountStore.recordExecution("Test", 1);
+
+            String reportPath = outputDir.resolve("report.html").toString();
+            ReportGenerator.generateHtmlReport(reportPath, sourceRoot.toString(), true);
+
+            assertTrue(Files.exists(outputDir.resolve("report.html")));
+            assertTrue(Files.exists(outputDir.resolve("report.json")));
+            assertTrue(Files.exists(outputDir.resolve("report.js")));
+            assertTrue(Files.exists(outputDir.resolve("report-app.js")));
+
+            String htmlContent = Files.readString(outputDir.resolve("report.html"));
+            assertTrue(htmlContent.contains("Test.java"));
+        } finally {
+            deleteRecursive(outputDir.toFile());
+            deleteRecursive(sourceRoot.toFile());
+        }
+    }
+
+    @Test
+    void testGroupingInnerClasses() throws IOException {
+        Path root = Files.createTempDirectory("inner");
+        try {
+            Path file = root.resolve("com/Outer.java");
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, "class Outer { class Inner {} }");
+
+            ExecutionCountStore.recordExecution("com.Outer", 10);
+            ExecutionCountStore.recordExecution("com.Outer$Inner", 20);
+
+            List<ReportGenerator.FileData> data = ReportGenerator.collectData(root.toString(), false);
+            assertEquals(1, data.size());
+            assertEquals(1L, data.get(0).getCounts().get(10));
+            assertEquals(1L, data.get(0).getCounts().get(20));
+        } finally {
+            deleteRecursive(root.toFile());
+        }
+    }
+
+    private void deleteRecursive(File file) {
+        File[] children = file.listFiles();
+        if (children != null) {
+            for (File child : children) deleteRecursive(child);
+        }
+        file.delete();
+    }
+}
