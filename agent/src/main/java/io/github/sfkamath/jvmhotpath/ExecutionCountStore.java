@@ -1,4 +1,4 @@
-package com.execounter;
+package io.github.sfkamath.jvmhotpath;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

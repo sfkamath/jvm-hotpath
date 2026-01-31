@@ -1,4 +1,4 @@
-package com.execounter;
+package io.github.sfkamath.jvmhotpath;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -15,7 +15,7 @@ import org.objectweb.asm.ClassWriter;
 /**
  * Java agent that instruments classes to count line executions.
  *
- * <p>Usage: java -javaagent:execution-counter.jar=packages=com.example -jar your-app.jar
+ * <p>Usage: java -javaagent:jvm-hotpath-agent.jar=packages=com.example -jar your-app.jar
  *
  * <p>Agent arguments: - packages=com.example,org.myapp (comma-separated list of packages to
  * instrument) - exclude=com.example.test (comma-separated list of packages to exclude) -
@@ -35,7 +35,7 @@ public final class ExecutionCounterAgent {
   public static void main(String[] args) {
     if (args.length == 0) {
       System.out.println(
-          "Usage: java -jar execution-counter.jar --data=<data.json> --output=<report.html>");
+          "Usage: java -jar jvm-hotpath-agent.jar --data=<data.json> --output=<report.html>");
       return;
     }
 
@@ -68,9 +68,10 @@ public final class ExecutionCounterAgent {
   }
 
   public static void premain(String agentArgs, Instrumentation inst) {
-    System.out.println("=== Execution Counter Agent Starting ===");
+    System.out.println("=== JVM Hotpath Agent Starting ===");
 
-    // Append agent JAR to system class loader search so instrumented classes can find
+    // Append agent JAR to system class loader search so instrumented classes can
+    // find
     // ExecutionCountStore
     try {
       Path jarPath =
@@ -121,7 +122,7 @@ public final class ExecutionCounterAgent {
                   }
                 }
               },
-              "ExecCounter-Flush-Thread");
+              "JvmHotpath-Flush-Thread");
       flushThread.setDaemon(true);
       flushThread.start();
 
@@ -138,7 +139,7 @@ public final class ExecutionCounterAgent {
                   }
                 }
               },
-              "ExecCounter-Heartbeat");
+              "JvmHotpath-Heartbeat");
       heartbeat.setDaemon(!keepAlive);
       heartbeat.start();
     }
@@ -156,7 +157,7 @@ public final class ExecutionCounterAgent {
                   }
                 }
               },
-              "ExecCounter-Heartbeat");
+              "JvmHotpath-Heartbeat");
       heartbeat.setDaemon(false);
       heartbeat.start();
     }
@@ -169,7 +170,7 @@ public final class ExecutionCounterAgent {
         .addShutdownHook(
             new Thread(
                 () -> {
-                  System.out.println("\n=== Generating Execution Count Report ===");
+                  System.out.println("\n=== Generating JVM Hotpath Report ===");
                   try {
                     ReportGenerator.generateHtmlReport(outputFile, sourcePath);
                     System.out.println("Report generated: " + outputFile);
@@ -179,7 +180,7 @@ public final class ExecutionCounterAgent {
                   }
                 }));
 
-    System.out.println("=== Execution Counter Agent Ready ===\n");
+    System.out.println("=== JVM Hotpath Agent Ready ===\n");
   }
 
   private static void parseArguments(String agentArgs) {
@@ -277,7 +278,7 @@ public final class ExecutionCounterAgent {
         byte[] classfileBuffer) {
 
       // Don't instrument our own classes
-      if (className.startsWith("com/execounter/")) {
+      if (className.startsWith("io/github/sfkamath/jvmhotpath/")) {
         return null;
       }
 
@@ -309,7 +310,8 @@ public final class ExecutionCounterAgent {
         return null;
       }
 
-      // REMOVED: Overly broad "Config" exclusion that was blocking legitimate app classes
+      // REMOVED: Overly broad "Config" exclusion that was blocking legitimate app
+      // classes
       // REMOVED: Application class exclusion - we want to instrument this
 
       // Check if class should be excluded
@@ -346,7 +348,8 @@ public final class ExecutionCounterAgent {
 
         return cw.toByteArray();
       } catch (Throwable t) {
-        // CRITICAL: Catch Throwable (not just Exception) to prevent class loader crashes
+        // CRITICAL: Catch Throwable (not just Exception) to prevent class loader
+        // crashes
         System.err.println(
             "[AGENT ERROR] Failed to instrument class "
                 + className

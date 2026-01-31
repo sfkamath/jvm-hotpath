@@ -1,4 +1,4 @@
-package com.execounter;
+package io.github.sfkamath.jvmhotpath;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -102,7 +102,7 @@ public final class ReportGenerator {
     Files.writeString(paths.htmlPath, finalHtml);
     System.out.println("Report written to: " + paths.htmlPath);
 
-    copyResource(paths.outputDir, "/com/execounter/report-app.js", "report-app.js");
+    copyResource(paths.outputDir, "/io/github/sfkamath/jvmhotpath/report-app.js", "report-app.js");
   }
 
   private static SourceFile findSourceContent(

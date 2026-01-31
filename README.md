@@ -1,10 +1,11 @@
-# Execution Counter Agent
+# JVM Hotpath Agent
 
 A Java agent that instruments classes at runtime to record and visualize line-level execution counts. It generates a modern, interactive HTML report with a file tree, global heatmap, and support for both dark and light modes.
 
 ## Features
 
 - **Bytecode Instrumentation**: Automatically injects counting logic into target methods using ASM.
+- **Frequency Analysis**: Tracks exactly how many times each line executes, rather than just "if" it was hit.
 - **Modern UI**: Interactive report built with Vue.js 3 and PrismJS.
 - **Live Updates**: Supports "serverless" real-time updates via JSONP, allowing you to watch counts increase while the app runs (even when opening the report as a local file).
 - **Global Heatmap**: Consistent coloring across all source files based on the project-wide maximum execution count.
@@ -13,7 +14,13 @@ A Java agent that instruments classes at runtime to record and visualize line-le
 
 ## Motivation
 
-Traditional coverage tools (Cobertura, JaCoCo, OpenClover, JCOV) either lack live reporting, struggle with modern JDKs, or hide raw counters behind opaque reports. IntelliJ and similar IDEs do not expose an easy way to visualize per-line execution as the app runs. Execution Counter bridges that gap by instrumenting production-like workloads, streaming live counts to a local HTML+JSONP UI, and surfacing changes without needing a server or sacrificing compatibility.
+JVM Hotpath is **not a coverage tool**. Traditional coverage tools (JaCoCo, OpenClover, JCov) focus on a binary question: *"Was this line executed during tests?"*. This is critical for quality metrics but useless for understanding **runtime behavior** and **hot-path analysis**.
+
+JVM Hotpath focus on frequency: *"How many times does this line execute in a real-world workload?"*. 
+
+IDEs do not expose an easy way to visualize per-line execution as the app runs. JVM Hotpath bridges that gap by instrumenting production-like workloads, streaming live frequency data to a local HTML UI, and surfacing hotspots without needing a server or sacrificing compatibility.
+
+See [docs/Motivation.md](docs/Motivation.md) for a more detailed deep-dive into the goals and architectural choices of this project.
 
 ## Building
 
@@ -23,24 +30,169 @@ To build the agent JAR (shaded with all dependencies):
 mvn clean package -DskipTests
 ```
 
-The resulting JAR will be at `target/execution-counter-1.0.0.jar`.
+The resulting JAR will be at `target/jvm-hotpath-agent-0.1.0.jar`.
 
 > **Frontend build:** The report UI lives in `report-ui/` and is bundled via Vite. `mvn clean package` runs `frontend-maven-plugin` to execute `npm install`/`npm run build` inside that folder before packaging, producing a browser-safe `report-app.js` (IIFE bundle). When iterating on the UI you can run `npm install && npm run build` manually from `report-ui/` to refresh the bundled asset.
 
 ## Usage
 
-Attach the agent to any Java application using the `-javaagent` flag:
+### Maven Plugin (Recommended)
 
-```bash
-java -javaagent:target/execution-counter-1.0.0.jar=packages=com.example,flushInterval=5,output=report.html,sourcepath=src/main/java -jar your-app.jar
+The easiest way to use JVM Hotpath is via the Maven plugin. It automatically finds the agent, configures your test runner (Surefire/Failsafe), and detects your project structure.
+
+Add this to your `pom.xml`:
+
+```xml
+<plugin>
+    <groupId>io.github.sfkamath</groupId>
+    <artifactId>jvm-hotpath-maven-plugin</artifactId>
+    <version>0.1.0</version>
+    <executions>
+        <execution>
+            <goals>
+                <goal>prepare-agent</goal>
+            </goals>
+        </execution>
+    </executions>
+    <configuration>
+        <!-- Optional: Auto-flush report every 5 seconds -->
+        <flushInterval>5</flushInterval>
+    </configuration>
+</plugin>
 ```
 
-### Multi-source invocation
+Then run your tests:
+```bash
+mvn verify
+```
+The report will be generated at `target/execution-report.html`.
+
+#### Multi-source invocation
+
+Just like the manual agent, the plugin can handle multiple source roots and packages. This is ideal for projects with **generated resources** (like OpenAPI or MapStruct) or when you want to instrument multiple modules in one report.
+
+**Via `pom.xml`:**
+
+```xml
+<configuration>
+    <!-- Your project's groupId and main sources are auto-detected. -->
+    <!-- Add extra packages to instrument (comma-separated): -->
+    <packages>com.example.generated,com.example.other.module</packages>
+    
+    <!-- Add extra source roots (joined with the platform separator : or ;): -->
+    <sourcepath>
+        target/generated-sources/openapi/src/main/java:../other-module/src/main/java
+    </sourcepath>
+</configuration>
+```
+
+**Via Command Line:**
+
+```bash
+mvn verify \
+  -Djvm-hotpath.packages=com.example.generated,com.example.other.module \
+  -Djvm-hotpath.sourcepath=target/generated-sources/openapi/src/main/java:../other-module/src/main/java
+```
+
+*Note: Use `:` (macOS/Linux) or `;` (Windows) as the path separator.*
+
+#### Running the Application
+
+To run your application with the agent active, ensure the `${argLine}` property is passed to your JVM runner.
+
+**Using a Profile (Recommended):**
+Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
+
+```xml
+<profile>
+    <id>instrument</id>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>io.github.sfkamath</groupId>
+                <artifactId>jvm-hotpath-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <configuration>
+                    <executable>java</executable>
+                    <commandlineArgs>${argLine} -classpath %classpath ${exec.mainClass}</commandlineArgs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</profile>
+```
+
+Then run:
+```bash
+mvn jvm-hotpath:prepare-agent exec:exec -Pinstrument
+```
+
+### Advanced Configuration
+
+The plugin uses **"Smart Defaults"** but allows additive configuration.
+
+| Config | Description | Default Behavior |
+| :--- | :--- | :--- |
+| `packages` | Packages to instrument. | **Appends** to project's `groupId`. |
+| `sourcepath` | Source roots for the report. | **Appends** to project's `src/main/java`. |
+| `includes` | External dependencies to resolve. | Resolves `sources.jar` for given artifacts. |
+
+#### Example: Including External Dependencies
+
+If you want to instrument code from a dependency (and see its source code in the report), configure `includes` in your `pom.xml` to automatically resolve the source JAR from Maven:
+
+```xml
+<configuration>
+    <packages>com.legacy.utils</packages>
+    <includes>
+        <include>
+            <groupId>com.example</groupId>
+            <artifactId>shared-library</artifactId>
+            <packageName>com.example.shared</packageName>
+        </include>
+    </includes>
+</configuration>
+```
+
+**Via Command Line:**
+You can achieve the same by pointing `sourcepath` directly to a sources JAR in your local repository:
+
+```bash
+mvn verify \
+  -Djvm-hotpath.packages=com.example.shared \
+  -Djvm-hotpath.sourcepath=$HOME/.m2/repository/com/example/shared-library/1.0.0/shared-library-1.0.0-sources.jar
+```
+
+### Manual Agent Usage
+
+If you prefer not to use the plugin, you can attach the agent manually.
+
+**Build the agent:**
+```bash
+mvn clean package -DskipTests
+```
+The JAR will be located at `agent/target/jvm-hotpath-agent-0.1.0.jar`.
+
+**Run with Agent:**
+
+```bash
+java -javaagent:agent/target/jvm-hotpath-agent-0.1.0.jar=packages=com.example,flushInterval=5,output=report.html,sourcepath=src/main/java -jar your-app.jar
+```
+
+#### Multi-source invocation
 
 When the instrumented application depends on multiple modules or libraries, repeat the `packages`/`sourcepath` values in a single agent argument string. Each `packages` entry should map to one of the supplied source roots (hand-written or generated) so the UI can show them under the correct project; mix generated-source directories (`target/generated-sources` etc.) with the corresponding `src/main/java` roots as needed. Package lists stay comma-separated, while source roots are joined with the platform-specific `Path.pathSeparator` (`:` on macOS/Linux, `;` on Windows). Example structure (replace the placeholders with your own paths):
 
 ```bash
-java -javaagent:target/execution-counter-1.0.0.jar=packages=com.example,com.other.module,\
+java -javaagent:agent/target/jvm-hotpath-agent-0.1.0.jar=packages=com.example,com.other.module,\
     flushInterval=5,\
     output=reports/execution-report.html,\
     sourcepath=module-a/src/main/java:module-a/target/generated-sources:module-b/src/main/java,\
@@ -57,11 +209,7 @@ module-b
   com.other.module
 ```
 
-Generated classes (e.g. from annotation-processing) stay under their originating module because the `target/generated-sources` folder shares the same project root.
-
-The agent now merges all provided source roots when overlaying code in the UI, so generated sources or auxiliary projects can be grouped under the right project name without restarting the app.
-
-### Agent Arguments
+#### Agent Arguments
 
 | Argument | Description | Default |
 | :--- | :--- | :--- |
@@ -107,7 +255,7 @@ See `docs/jsonp-live-updates.md` for implementation details and gotchas.
 If you have a saved `execution-report.json` file and want to regenerate the HTML UI (e.g., after updating the template or changing themes):
 
 ```bash
-java -jar target/execution-counter-1.0.0.jar --data=report.json --output=new-report.html
+java -jar agent/target/jvm-hotpath-agent-0.1.0.jar --data=report.json --output=new-report.html
 ```
 
 ## Internal Safety Mechanisms

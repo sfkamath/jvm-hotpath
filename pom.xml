@@ -5,136 +5,147 @@
          http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.execounter</groupId>
-    <artifactId>execution-counter</artifactId>
-    <version>1.0.0</version>
-    <packaging>jar</packaging>
+    <groupId>io.github.sfkamath</groupId>
+    <artifactId>jvm-hotpath-parent</artifactId>
+    <version>0.1.0</version>
+    <packaging>pom</packaging>
 
-
-    <parent>
-        <groupId>com.sfk</groupId>
-        <artifactId>java-bom</artifactId>
-        <version>0.1.82</version>
-    </parent>
-
+    <modules>
+        <module>agent</module>
+        <module>maven-plugin</module>
+    </modules>
 
     <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spotless-maven-plugin.version>3.2.1</spotless-maven-plugin.version>
         <asm.version>9.9.1</asm.version>
-        <skip.frontend>false</skip.frontend>
+        <maven.compiler.release>21</maven.compiler.release>
     </properties>
 
-    <dependencies>
-        <!-- ASM for bytecode instrumentation -->
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm</artifactId>
-            <version>${asm.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm-commons</artifactId>
-            <version>${asm.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm-util</artifactId>
-            <version>${asm.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.21.0</version>
-        </dependency>
-    </dependencies>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.github.sfkamath</groupId>
+                <artifactId>jvm-hotpath-agent</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-            </resource>
-            <resource>
-                <directory>report-ui/dist</directory>
-                <targetPath>com/execounter</targetPath>
-                <includes>
-                    <include>report-app.js</include>
-                </includes>
-            </resource>
-        </resources>
         <plugins>
             <plugin>
-                <groupId>com.github.eirslett</groupId>
-                <artifactId>frontend-maven-plugin</artifactId>
-                <version>2.0.0</version>
-                <configuration>
-                    <workingDirectory>report-ui</workingDirectory>
-                    <installDirectory>${project.build.directory}/node</installDirectory>
-                    <nodeVersion>v24.13.0</nodeVersion>
-                    <npmVersion>10.9.3</npmVersion>
-                    <skip>${skip.frontend}</skip>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>install-node-and-npm</id>
-                        <goals>
-                            <goal>install-node-and-npm</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>npm-install</id>
-                        <phase>generate-resources</phase>
-                        <goals>
-                            <goal>npm</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>install</arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>npm-build</id>
-                        <phase>generate-resources</phase>
-                        <goals>
-                            <goal>npm</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>run build</arguments>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <!-- Create JAR with manifest for Java agent -->
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.5.0</version>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
                 <configuration>
-                    <archive>
-                        <manifestEntries>
-                            <Premain-Class>com.execounter.ExecutionCounterAgent</Premain-Class>
-                            <Main-Class>com.execounter.ExecutionCounterAgent</Main-Class>
-                            <Can-Retransform-Classes>true</Can-Retransform-Classes>
-                            <Can-Redefine-Classes>true</Can-Redefine-Classes>
-                        </manifestEntries>
-                    </archive>
+                    <release>${maven.compiler.release}</release>
                 </configuration>
-            </plugin>
-
-            <!-- Shade plugin to include ASM in the agent JAR -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.6.1</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>quality</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.openrewrite.maven</groupId>
+                        <artifactId>rewrite-maven-plugin</artifactId>
+                        <version>6.28.0</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>com.github.ben-manes.caffeine</groupId>
+                                <artifactId>caffeine</artifactId>
+                                <version>3.2.3</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <recipeArtifactCoordinates>
+                                org.openrewrite.recipe:rewrite-static-analysis:RELEASE
+                            </recipeArtifactCoordinates>
+                            <activeRecipes>
+                                <recipe>org.openrewrite.java.ShortenFullyQualifiedTypeReferences</recipe>
+                                <recipe>org.openrewrite.staticanalysis.CommonStaticAnalysis</recipe>
+                                <recipe>org.openrewrite.staticanalysis.CodeCleanup</recipe>
+                                <recipe>org.openrewrite.java.RemoveUnusedImports</recipe>
+                                <recipe>org.openrewrite.staticanalysis.UnnecessaryParentheses</recipe>
+                                <recipe>org.openrewrite.staticanalysis.SimplifyBooleanExpression</recipe>
+                                <recipe>org.openrewrite.staticanalysis.NoDoubleBraceInitialization</recipe>
+                            </activeRecipes>
+                            <exclusions>
+                                <exclusion>**/target/generated-sources/**</exclusion>
+                            </exclusions>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>rewrite-no-fork</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>runNoFork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.diffplug.spotless</groupId>
+                        <artifactId>spotless-maven-plugin</artifactId>
+                        <version>${spotless-maven-plugin.version}</version>
+                        <configuration>
+                            <java>
+                                <includes>
+                                    <include>src/integration-test/java/**/*.java</include>
+                                    <include>src/main/java/**/*.java</include>
+                                    <include>src/test/java/**/*.java</include>
+                                </includes>
+                                <importOrder/>
+                                <removeUnusedImports/>
+                                <googleJavaFormat/>
+                                <formatAnnotations/>
+                            </java>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>apply</goal>
+                                </goals>
+                                <phase>validate</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.github.spotbugs</groupId>
+                        <artifactId>spotbugs-maven-plugin</artifactId>
+                        <version>4.8.6.6</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                                <phase>verify</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.gaul</groupId>
+                        <artifactId>modernizer-maven-plugin</artifactId>
+                        <version>3.2.0</version>
+                        <configuration>
+                            <javaVersion>${maven.compiler.release}</javaVersion>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>modernizer-check</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>modernizer</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

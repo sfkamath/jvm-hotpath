@@ -20,7 +20,7 @@ export default defineConfig({
     lib: {
       entry: path.resolve(__dirname, 'src/main.ts'),
       formats: ['iife'],
-      name: 'ExecutionCounterReport',
+      name: 'JvmHotpathReport',
       fileName: () => 'report-app.js'
     },
     rollupOptions: {

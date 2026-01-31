@@ -1,7 +1,7 @@
 # JSONP Live Updates (file://)
 
 This document explains the JSONP-based live update mechanism used by the
-execution-counter HTML report when opened directly from disk (file://).
+jvm-hotpath HTML report when opened directly from disk (file://).
 
 Status: Reference
 Last updated: 2026-01-30
@@ -87,9 +87,9 @@ loophole to update live without any server.
 
 ## Observed runtime glitches
 
-- When opening `execution-report.html` from `radio-metadata-fr-scraper/target/site`, DevTools reported:
+- When opening `jvm-hotpath-report.html` from `radio-metadata-fr-scraper/target/site`, DevTools reported:
   ```
-  Fetch API cannot load .../execution-report.json?t=1769781213235 due to access control checks.
+  Fetch API cannot load .../jvm-hotpath-report.json?t=1769781213235 due to access control checks.
   Cross origin requests are only supported for HTTP.
   ```
   That proves `fetch()` is blocked for `file://`, so the JSONP path must be the primary mechanism for live refresh.

@@ -1,13 +1,11 @@
-# Execution Counter TODO Log
+# JVM Hotpath TODO Log
 Status: ⚠️ in progress  
 Date: 2026-01-30
 
-- ⬜ [🔥 high priority] Verify the agent works when multiple libraries/components are on the classpath (registry) before tackling the BOM change.
-  - ⚙️ Run the agent against the registry app and confirm instrumentation/report generation proceeds without relying on an explicit multi-module build. ✅ `station-registry` run succeeded with multi-root `sourcepath`.
-- ⬜ [🔥 high priority] Verify the agent works when multiple libraries/components are on the classpath (registry + icy-reader), ensuring both source trees are included.
+- ✅ [🔥 high priority] Verify the agent works when multiple libraries/components are on the classpath (registry + icy-reader), ensuring both source trees are included.
   - ⚙️ Run the agent against the registry app with `packages=radio.registry,com.sfk.radio` and `sourcepath` pointing to `station-registry/src/main/java`, `station-registry/target/generated-sources/openapi/src/main/java`, and `icy-reader/src/main/java`. ✅ counts emitted for both projects after manual trigger.
   - ⚙️ Confirm the JSON report contains files from the OpenAPI outputs (e.g., `radio/registry/api/model/IdentityStatus.java`) and `icy-reader` (e.g., `com/sfk/radio/scrape/IcyStreamReader.java`). ✅ Report now includes generated files and com/sfk/radio entries.
-- ⬜ Remove the `java-bom` parent so `execution-counter` is self-contained, pinning dependency/plugin versions in `pom.xml`.
+- ✅ Remove the `java-bom` parent so `jvm-hotpath` is self-contained, pinning dependency/plugin versions in `pom.xml`.
 - ⬜ Replace `System.out` logging with `java.util.logging`, keeping instrumentation logs configurable via agent args (`verbose=true`).
 - ⬜ Fix JSONP live refresh by switching to `fetch()` with pure JSON (see `JSONP-LIVE-REFRESH-ISSUE.md`).
     - Update `ReportGenerator.java` to write pure JSON instead of JSONP wrapper.
@@ -22,7 +20,8 @@ Date: 2026-01-30
     - Playwright scripts validate UI renders and counts refresh.
 - ⬜ Configure CI with Java LTS matrix (17/21/23) running fixtures + Playwright checks.
 - ⬜ Extract hardcoded class exclusions from `ExecutionCountTransformer` into external config file.
-- ⬜ Create Maven and Gradle plugins for easier agent integration.
+- ✅ Create Maven plugin for easier agent integration.
+- ⬜ Create Gradle plugin for easier agent integration.
 - ⬜ Publish to Maven Central:
     - Open Sonatype OSSRH ticket for `groupId` (e.g., `io.github.yourorg`).
     - Add GPG signing, source/javadoc jars, and `distributionManagement`.

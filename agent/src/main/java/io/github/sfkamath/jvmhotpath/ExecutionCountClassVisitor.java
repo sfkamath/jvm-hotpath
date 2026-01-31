@@ -1,4 +1,4 @@
-package com.execounter;
+package io.github.sfkamath.jvmhotpath;
 
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Label;
@@ -58,7 +58,7 @@ public class ExecutionCountClassVisitor extends ClassVisitor {
       // Call ExecutionCountStore.recordExecution(String, int)
       mv.visitMethodInsn(
           Opcodes.INVOKESTATIC,
-          "com/execounter/ExecutionCountStore",
+          "io/github/sfkamath/jvmhotpath/ExecutionCountStore",
           "recordExecution",
           "(Ljava/lang/String;I)V",
           false);

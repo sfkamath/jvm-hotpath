@@ -1,4 +1,4 @@
-# Execution Counter - Runtime Code Execution Analysis for Java
+# JVM Hotpath - Runtime Code Execution Analysis for Java
 
 A lightweight Java agent that provides **per-line execution counts** for running Java applications, with live-updating HTML reports. Built to fill the gap left by abandoned tools in the modern Java ecosystem.
 
@@ -22,11 +22,31 @@ For years, **Cobertura** was the go-to tool for understanding how many times eac
 | **OpenClover** | ⚠️ Unmaintained | ❌ | ✅ | Fails on Java 21 bytecode |
 | **JaCoCo** | ✅ Active | ✅ | ❌ | Only shows coverage %, not counts |
 | **JCov** | ✅ Active | ✅ | ✅ | No Maven repo, must build from source, poor docs |
-| **IntelliJ IDEA Coverage** | ✅ Active | ✅ | ⚠️ | Shows counts in IDE only, no export |
+| **IDE-based Coverage** | ✅ Active | ✅ | ⚠️ | Shows counts in IDE only, no export |
 
 **The gap:** No actively maintained, easy-to-use tool provides runtime execution counts for modern Java applications.
 
-## Why Execution Counts Matter
+## Why Execution Analysis is Not Coverage
+
+There is a fundamental difference between **Code Coverage** and **Execution Frequency Analysis**.
+
+| Metric | Code Coverage (JaCoCo) | Execution Analysis (JVM Hotpath) |
+|------|------------------------|---------------------------------------|
+| **Goal** | Verification | Understanding |
+| **Question** | "Did it run?" | "How much did it run?" |
+| **Data Type** | Boolean (Hit/Miss) | Integer (Counter) |
+| **Focus** | Test Completeness | Runtime Behavior & Hot-paths |
+| **Visual** | Red/Green Gutter | Heatmaps & Magnitude |
+
+### The Real-World Example
+
+Imagine a classic validation line:
+```java
+if (input == null) throw new IllegalArgumentException();
+```
+
+- **JaCoCo says:** "Covered ✓" (because one test passed a null).
+- **JVM Hotpath says:** "1,400,000 executions" (revealing that nulls are unexpectedly common in production, or this is a critical loop).
 
 Execution counts reveal insights that simple coverage percentages can't:
 
@@ -60,7 +80,7 @@ Line 44: executed 1 time        ← Teardown code
 
 ```java
 // JaCoCo says: "Line 15: Covered ✓"
-// Execution Counter says: "Line 15: executed 47,293 times"
+// JVM Hotpath says: "Line 15: executed 47,293 times"
 ```
 
 One tells you it was executed. The other tells you it's a critical hotspot.
@@ -72,7 +92,7 @@ One tells you it was executed. The other tells you it's a critical hotspot.
 1. **Runtime Instrumentation**
     - Uses ASM bytecode instrumentation
     - Zero code changes required
-    - Works as a Java agent: `-javaagent:execution-counter.jar`
+    - Works as a Java agent: `-javaagent:jvm-hotpath-agent.jar`
 
 2. **Per-Line Execution Counts**
     - Tracks every line execution in instrumented classes
@@ -134,9 +154,9 @@ One tells you it was executed. The other tells you it's a critical hotspot.
 
 ### vs. JaCoCo (Different Purpose)
 - JaCoCo: "Did this line execute?" (coverage %)
-- Execution Counter: "How many times?" (frequency analysis)
+- JVM Hotpath: "How many times?" (frequency analysis)
 - Use JaCoCo for: Test coverage metrics
-- Use Execution Counter for: Runtime behavior analysis
+- Use JVM Hotpath for: Runtime behavior analysis
 
 ### vs. JCov (Easier Alternative)
 - ✅ Maven Central availability (JCov requires manual build)
@@ -147,27 +167,23 @@ One tells you it was executed. The other tells you it's a critical hotspot.
 
 ### vs. Profilers (Different Focus)
 - Profilers: CPU time, memory allocation, method duration
-- Execution Counter: Line-level execution frequency
+- JVM Hotpath: Line-level execution frequency
 - Use profilers for: Performance bottlenecks
-- Use Execution Counter for: Code path analysis
+- Use JVM Hotpath for: Code path analysis
 
-## When to Use This Tool
+### ❌ This is NOT for:
 
-### ✅ Great For
+- **Test coverage metrics** - If you need to report "85% line coverage" to your manager, **use JaCoCo**. This tool is not designed to aggregate test results into a single percentage.
+- **Performance profiling** - If you need to see exactly *how many milliseconds* a method took, use a CPU profiler (VisualVM, JProfiler).
+- **Production monitoring** - For 24/7 monitoring of throughput/latency, use APM tools (Datadog, New Relic).
 
-- **Runtime behavior analysis** - Understanding production code paths
-- **Performance investigation** - Finding execution hotspots
-- **Dead code detection** - Seeing what actually runs
-- **Refactoring preparation** - Knowing what code is critical
-- **Long-running applications** - Services, daemons, scheduled tasks
-- **Framework-heavy apps** - Micronaut, Spring Boot, Quarkus
+### ✅ This IS for:
 
-### ⚠️ Not Ideal For
-
-- **Test coverage metrics** - Use JaCoCo instead
-- **Performance profiling** - Use VisualVM, JProfiler, async-profiler
-- **Production monitoring** - Use APM tools (New Relic, Datadog, etc.)
-- **Memory analysis** - Use heap profilers
+- **Runtime behavior analysis** - Understanding which code paths are actually "alive" in production.
+- **Hot-path investigation** - Finding the specific lines that execute millions of times.
+- **Dead code detection** - Finding code that stays at "0" even after weeks of real usage.
+- **Refactoring preparation** - Knowing which lines are high-stakes before you touch them.
+- **Long-running applications** - Watching counts grow in real-time on services or daemons.
 
 ## Technical Approach
 
@@ -237,7 +253,7 @@ This project is our contribution to filling that gap.
 
 ```bash
 # Add the agent to your application
-java -javaagent:execution-counter.jar=packages=com.yourapp,flushInterval=5 \
+java -javaagent:jvm-hotpath-agent.jar=packages=com.yourapp,flushInterval=5 \
      -jar your-application.jar
 
 # Open the generated report
