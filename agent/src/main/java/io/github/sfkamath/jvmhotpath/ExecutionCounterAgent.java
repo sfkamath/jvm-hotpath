@@ -75,7 +75,9 @@ public final class ExecutionCounterAgent {
                   .getCodeSource()
                   .getLocation()
                   .toURI());
-      inst.appendToSystemClassLoaderSearch(new JarFile(jarPath.toFile()));
+      if (java.nio.file.Files.isRegularFile(jarPath)) {
+        inst.appendToSystemClassLoaderSearch(new JarFile(jarPath.toFile()));
+      }
     } catch (Exception e) {
       logger.log(Level.SEVERE, "Failed to append agent JAR to system class loader: " + e.getMessage(), e);
     }

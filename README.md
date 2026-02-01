@@ -20,7 +20,65 @@ JVM Hotpath focus on frequency: *"How many times does this line execute in a rea
 
 IDEs do not expose an easy way to visualize per-line execution as the app runs. JVM Hotpath bridges that gap by instrumenting production-like workloads, streaming live frequency data to a local HTML UI, and surfacing hotspots without needing a server or sacrificing compatibility.
 
+## Why Traditional Profilers Miss This
+
+### The Real-World Case Study
+
+During development, this tool caught a bug that standard profilers missed:
+
+**The Bug:** A getter method (`isDuplicate()`) was being called 19 million times in 15 seconds.  
+**The Problem:** Each call was ~50 nanoseconds - too fast for sampling profilers to notice.  
+**The Impact:** Algorithmic complexity (O(N) instead of O(1)) was killing performance.
+
+Standard profilers showed the method as "not hot" because the CPU wasn't stuck there. But 19 million calls × 50ns = 950ms of wasted time hidden in plain sight.
+
+### How Current Tools Fall Short
+
+| Tool Type | What It Shows | What It Misses |
+|-----------|---------------|----------------|
+| **Sampling Profilers**<br/>(VisualVM, JFR) | CPU-intensive methods | Fast methods called millions of times |
+| **Commercial Profilers**<br/>(JProfiler, YourKit) | Timing with nanosecond precision | Usability (10x-50x overhead, heavy GUIs) |
+| **APM Tools**<br/>(Datadog, New Relic) | Request/span-level metrics | Line-level logic errors |
+
+### The Key Insight: Frequency ≠ Duration
+
+Java profilers focus on **where the CPU is hot** (timing).  
+This tool shows **how many times code runs** (frequency).
+
+In modern Java:
+- JIT compilation makes methods fast
+- The bottleneck is often algorithmic (O(N) vs O(1))
+- Logic errors create millions of unnecessary calls
+- Each call is too fast to show up in sampling
+
+**Example:**
+```
+Sampler says: "Line 96 uses 2.3% CPU time"
+Hotpath says: "Line 96: executed 19,147,293 times"
+```
+
+One is a performance metric. The other is a logic error screaming at you.
+
+### What This Tool Does Differently
+
+✅ **Zero timing overhead** - Just counts, no nanosecond measurements  
+✅ **Counts every execution** - No sampling, no missing fast methods  
+✅ **Simple output** - JSON/HTML, not a heavy GUI  
+✅ **LLM-friendly** - Pipe the report to Claude/GPT for analysis  
+✅ **Logic-focused** - Finds algorithmic problems, not just CPU hotspots  
+
+**It's a "Logic X-Ray" not a "CPU Thermometer".**
+
+When you see "Line 42: executed 19 million times" in a 15-second run, you don't need to measure nanoseconds. You need to fix your algorithm.
+
 See [docs/Motivation.md](docs/Motivation.md) for a more detailed deep-dive into the goals and architectural choices of this project.
+
+## Requirements
+
+- **Java:** 11 or higher (tested on 11, 17, 21, 23)
+- **Build Tool:** Maven 3.6+ or Gradle 7.0+
+
+The agent is compiled to Java 11 bytecode for maximum compatibility.
 
 ## Building
 
@@ -33,6 +91,41 @@ mvn clean package -DskipTests
 The resulting JAR will be at `target/jvm-hotpath-agent-0.1.0.jar`.
 
 > **Frontend build:** The report UI lives in `report-ui/` and is bundled via Vite. `mvn clean package` runs `frontend-maven-plugin` to execute `npm install`/`npm run build` inside that folder before packaging, producing a browser-safe `report-app.js` (IIFE bundle). When iterating on the UI you can run `npm install && npm run build` manually from `report-ui/` to refresh the bundled asset.
+
+## Quick Start
+
+### Maven
+
+The easiest way to use JVM Hotpath is via the Maven plugin. It automatically finds the agent, configures your test runner (Surefire/Failsafe), and detects your project structure.
+
+Add this to your `pom.xml`:
+
+```xml
+<plugin>
+    <groupId>io.github.sfkamath</groupId>
+    <artifactId>jvm-hotpath-maven-plugin</artifactId>
+    <version>0.1.0</version>
+    <executions>
+        <execution>
+            <goals>
+                <goal>prepare-agent</goal>
+            </goals>
+        </execution>
+    </executions>
+    <configuration>
+        <flushInterval>5</flushInterval>
+    </configuration>
+</plugin>
+```
+
+Then run your tests:
+```bash
+mvn verify
+```
+
+### Gradle
+
+See [GRADLE.md](GRADLE.md) for Gradle configuration.
 
 ## Usage
 
@@ -267,6 +360,13 @@ If you have a saved `execution-report.json` file and want to regenerate the HTML
 ```bash
 java -jar agent/target/jvm-hotpath-agent-0.1.0.jar --data=report.json --output=new-report.html
 ```
+
+## Development
+
+- **Development JDK:** Java 21
+- **Bytecode Target:** Java 11 (for maximum runtime compatibility)
+- **Instrumentation Engine:** ASM 9.6 (supports Java 23 bytecode)
+- **CI Testing Matrix:** Covers Java 11, 17, 21, and 23.
 
 ## Internal Safety Mechanisms
 

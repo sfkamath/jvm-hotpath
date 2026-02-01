@@ -10,6 +10,14 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.lang.instrument.ClassFileTransformer;
+import java.lang.instrument.Instrumentation;
+import java.lang.instrument.ClassDefinition;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.jar.JarFile;
 import org.junit.jupiter.api.Test;
 
@@ -49,7 +57,7 @@ class ExecutionCounterAgentTest {
             ExecutionCounterAgent.main(new String[0]);
             
             // Should fail with missing data
-            ExecutionCounterAgent.main(new String[]{"--output=test.html"});
+            ExecutionCounterAgent.main(new String[]{"--output=target/test.html"});
             
             // Should succeed regenerating
             ExecutionCounterAgent.main(new String[]{
@@ -125,7 +133,7 @@ class ExecutionCounterAgentTest {
     @Test
     void testTransformationErrorHandling() throws Exception {
         ExecutionCounterAgent agent = new ExecutionCounterAgent();
-        agent.parseArguments("packages=com.app,verbose=true");
+        agent.parseArguments("packages=com.app,verbose=false");
         ClassFileTransformer transformer = agent.getTransformer();
         
         // Providing garbage bytes that ASM can't parse should trigger catch block
@@ -135,7 +143,8 @@ class ExecutionCounterAgentTest {
     @Test
     void testPremainAndInit() {
         Instrumentation dummyInst = new DummyInstrumentation();
-        ExecutionCounterAgent.premain("packages=com.test,flushInterval=0", dummyInst);
+        // Use target/ to ensure shutdown hook output is ignored by git
+        ExecutionCounterAgent.premain("packages=com.test,flushInterval=0,output=target/shutdown-test.html", dummyInst);
     }
 
     @Test
