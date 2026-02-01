@@ -11,13 +11,19 @@
         <version>0.1.0</version>
     </parent>
 
-    <artifactId>jvm-hotpath-integration-tests</artifactId>
+    <artifactId>jvm-hotpath-integration-tests-spring</artifactId>
 
     <properties>
         <spring-boot.version>3.4.2</spring-boot.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>io.github.sfkamath</groupId>
+            <artifactId>jvm-hotpath-agent</artifactId>
+            <version>0.1.0</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -63,9 +69,27 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <!-- argLine is populated by jvm-hotpath-maven-plugin -->
                     <argLine>${argLine}</argLine>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

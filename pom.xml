@@ -13,7 +13,8 @@
     <modules>
         <module>agent</module>
         <module>maven-plugin</module>
-        <module>integration-tests</module>
+        <module>integration-tests-spring</module>
+        <module>integration-tests-micronaut</module>
     </modules>
 
     <properties>

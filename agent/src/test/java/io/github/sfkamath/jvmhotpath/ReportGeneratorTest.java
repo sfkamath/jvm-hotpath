@@ -116,6 +116,79 @@ class ReportGeneratorTest {
         }
     }
 
+    @Test
+    void testRegenerateReportVariations() throws Exception {
+        Path tempDir = Files.createTempDirectory("hotpath-regen");
+        Path jsonFile = tempDir.resolve("data.json");
+        Path outputFile = tempDir.resolve("report.html");
+        
+        try {
+            // 1. Array-based payload (old format or shorthand)
+            Files.writeString(jsonFile, "[{\"path\":\"Old.java\", \"counts\":{\"10\":5}, \"content\":\"code\", \"project\":\"p\"}]");
+            ReportGenerator.regenerateReport(jsonFile.toString(), outputFile.toString());
+            assertTrue(Files.readString(outputFile).contains("Old.java"));
+            
+            // 2. Object-based payload without generatedAt
+            Files.writeString(jsonFile, "{\"files\":[{\"path\":\"New.java\", \"counts\":{\"5\":1}, \"content\":\"more code\", \"project\":\"p2\"}]}");
+            ReportGenerator.regenerateReport(jsonFile.toString(), outputFile.toString());
+            assertTrue(Files.readString(outputFile).contains("New.java"));
+        } finally {
+            deleteRecursive(tempDir.toFile());
+        }
+    }
+
+    @Test
+    void testSourceRootParsingAndProjectDerivation() throws Exception {
+        Path root = Files.createTempDirectory("project-root");
+        Path src = root.resolve("src");
+        Files.createDirectories(src);
+        
+        try {
+            List<ReportGenerator.FileData> data = ReportGenerator.collectData(src.toString(), true);
+            assertNotNull(data);
+            
+            // Test empty/invalid paths
+            assertTrue(ReportGenerator.collectData(null, false).isEmpty());
+            assertTrue(ReportGenerator.collectData("  ", false).isEmpty());
+            assertTrue(ReportGenerator.collectData("/non/existent/path/at/all", false).isEmpty());
+        } finally {
+            deleteRecursive(root.toFile());
+        }
+    }
+
+    @Test
+    void testMergingWithInnerClasses() throws Exception {
+        ExecutionCountStore.reset();
+        ExecutionCountStore.recordExecution("com.app.Service", 10);
+        ExecutionCountStore.recordExecution("com.app.Service$Inner", 20);
+        
+        // Should merge into Service.java
+        List<ReportGenerator.FileData> data = ReportGenerator.collectData("", false);
+        ReportGenerator.FileData serviceFile = data.stream()
+            .filter(f -> f.getPath().equals("com/app/Service.java"))
+            .findFirst().orElseThrow();
+            
+        assertEquals(1L, serviceFile.getCounts().get(10));
+        assertEquals(1L, serviceFile.getCounts().get(20));
+    }
+
+    @Test
+    void testFallbackProjectDerivation() throws Exception {
+        Path root = Files.createTempDirectory("my-project");
+        // Create something that is NOT 'src' or 'target' to trigger fallback logic
+        Path other = root.resolve("other");
+        Files.createDirectories(other);
+        Path java = other.resolve("App.java");
+        Files.writeString(java, "public class App {}");
+        
+        List<ReportGenerator.FileData> data = ReportGenerator.collectData(other.toString(), false);
+        assertFalse(data.isEmpty());
+        // derivator should fall back to the last segment of the path if src/target not found
+        assertEquals("other", data.get(0).getProject());
+        
+        deleteRecursive(root.toFile());
+    }
+
     private void deleteRecursive(File file) {
         File[] children = file.listFiles();
         if (children != null) {
