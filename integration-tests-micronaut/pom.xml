@@ -14,7 +14,9 @@
     <artifactId>jvm-hotpath-integration-tests-micronaut</artifactId>
 
     <properties>
-        <micronaut.version>4.7.6</micronaut.version>
+        <micronaut.version>4.10.14</micronaut.version>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>true</maven.install.skip>
     </properties>
 
     <dependencies>
@@ -43,7 +45,7 @@
         <dependency>
             <groupId>io.micronaut.test</groupId>
             <artifactId>micronaut-test-junit5</artifactId>
-            <version>4.6.0</version>
+            <version>4.10.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -89,7 +91,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.2.5</version>
                 <executions>
                     <execution>
                         <goals>
@@ -105,7 +106,6 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
                 <executions>
                     <execution>
                         <goals>

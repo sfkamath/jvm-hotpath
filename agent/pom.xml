@@ -14,6 +14,9 @@
     <artifactId>jvm-hotpath-agent</artifactId>
     <packaging>jar</packaging>
 
+    <name>JVM Hotpath Agent</name>
+    <description>The runtime instrumentation agent for JVM Hotpath. Counts every line execution with minimal overhead.</description>
+
     <properties>
         <asm.version>9.9.1</asm.version>
         <skip.frontend>false</skip.frontend>
@@ -65,7 +68,7 @@
             <plugin>
                 <groupId>com.github.eirslett</groupId>
                 <artifactId>frontend-maven-plugin</artifactId>
-                <version>2.0.0</version>
+                <version>1.15.4</version>
                 <configuration>
                     <workingDirectory>report-ui</workingDirectory>
                     <installDirectory>${project.build.directory}/node</installDirectory>
@@ -140,7 +143,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
+                <version>0.8.14</version>
                 <executions>
                     <execution>
                         <goals>

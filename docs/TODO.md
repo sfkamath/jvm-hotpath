@@ -1,39 +1,63 @@
 # JVM Hotpath TODO Log
 Status: ⚠️ in progress  
-Date: 2026-01-30
+Date: 2026-02-01
 
-- ✅ [🔥 high priority] Verify the agent works when multiple libraries/components are on the classpath (registry + icy-reader), ensuring both source trees are included.
-  - ⚙️ Run the agent against the registry app with `packages=radio.registry,com.sfk.radio` and `sourcepath` pointing to `station-registry/src/main/java`, `station-registry/target/generated-sources/openapi/src/main/java`, and `icy-reader/src/main/java`. ✅ counts emitted for both projects after manual trigger.
-  - ⚙️ Confirm the JSON report contains files from the OpenAPI outputs (e.g., `radio/registry/api/model/IdentityStatus.java`) and `icy-reader` (e.g., `com/sfk/radio/scrape/IcyStreamReader.java`). ✅ Report now includes generated files and com/sfk/radio entries.
-- ✅ Remove the `java-bom` parent so `jvm-hotpath` is self-contained, pinning dependency/plugin versions in `pom.xml`.
-- ⬜ Replace `System.out` logging with `java.util.logging`, keeping instrumentation logs configurable via agent args (`verbose=true`).
-- ⬜ Fix JSONP live refresh by switching to `fetch()` with pure JSON (see `JSONP-LIVE-REFRESH-ISSUE.md`).
-    - Update `ReportGenerator.java` to write pure JSON instead of JSONP wrapper.
-    - Update `report-template.html` to poll via `fetch()` instead of script injection.
-    - Fix `updateTreeData()` to always update counts (not just on increase).
-  - ⚙️ Introduce project-root grouping in the tree data so files hang beneath their project name before collapsing `packages`.
-    - ✅ Report now invites a project segment before `com/sfk/radio` or `radio/registry` entries.
-- ⬜ Verify hardened agent fixes Micronaut shutdown issue with updated exclusions and `Throwable` catch.
-- ⬜ Build Micronaut and Spring Boot test fixtures that run the agent, emit reports, and validate via Playwright.
-    - Keep fixtures minimal (single endpoint or scheduled task) for fast CI.
-    - Add Maven profiles (`-Pmicronaut-tests`, `-Pspring-tests`).
-    - Playwright scripts validate UI renders and counts refresh.
-- ⬜ Configure CI with Java LTS matrix (17/21/23) running fixtures + Playwright checks.
-- ⬜ Extract hardcoded class exclusions from `ExecutionCountTransformer` into external config file.
-- ✅ Create Maven plugin for easier agent integration.
-- ⬜ Create Gradle plugin for easier agent integration.
-- ⬜ Publish to Maven Central:
-    - Open Sonatype OSSRH ticket for `groupId` (e.g., `io.github.yourorg`).
-    - Add GPG signing, source/javadoc jars, and `distributionManagement`.
-    - Automate deploy/release in CI with stored credentials.
-- 📝 README already highlights the gap this fills vs Cobertura/JaCoCo/JCov ✅
+## 🔴 Critical (Must Have)
 
-## Completed
-- ✅ Modernized report UI with Vite bundle, JSONP cache-busting, offline status.
-- ✅ Added detailed README explaining motivation and ecosystem gap.
-- ✅ Documented JSONP issue and fetch() solution.
-- ✅ Hardened agent with proper Micronaut exclusions and Throwable catching.
+- ✅ **Self-contained build**: Shaded agent and independent parent POM.
+- ✅ **Fix live refresh**: Switched from JSONP to `fetch()` with pure JSON for HTTP loads.
+- ✅ **Standardized Logging**: Replaced `System.out` with `java.util.logging`.
+- ✅ **Framework Stability**: Verified Micronaut/Netty doesn't crash during instrumentation.
+- ⬜ **Maven Central publishing setup**:
+    - ⬜ Open Sonatype OSSRH ticket or verify on Central Portal.
+    - ✅ Configure GPG signing plugin in `pom.xml` (via `ossrh` profile).
+    - ✅ Add `maven-javadoc-plugin` and `maven-source-plugin` (via `ossrh` profile).
+    - ✅ Add required POM metadata (name, description, url, licenses, developers, scm).
+- ✅ **Basic CI**: GitHub Actions workflow running on Java 21.
+- ✅ **Clean git history**: Squash/rebase into a professional public-friendly history.
+- ✅ **LICENSE file**: Add MIT License to the project root.
+- ✅ **GRADLE.md**: Comprehensive usage guide for Gradle users.
 
-## Pre-release housekeeping
-- ⬜ Choose a neutral public name/groupId for the plugin (avoid internal repo names) and update Maven coordinates/docs accordingly.
-- ⬜ Squash local commits into a clean public-friendly history before the first Maven Central release.
+## 🟡 Important (Should Have)
+
+- ✅ **Java LTS matrix CI**: Verified builds/tests on Java 11, 17, 21, and 23.
+- ✅ **Working test fixtures**: Isolated integration tests for both Spring Boot and Micronaut.
+- ⬜ **External exclusions config**: Move hardcoded exclusions from `ExecutionCountTransformer` to a `.properties` or `.json` file.
+- ✅ **Project-aware reporting**: Group source files by project/module in the UI tree.
+
+## 🟢 Nice to Have (Can Wait)
+
+- ⬜ **Native Gradle plugin**: Automate configuration for Gradle projects.
+- ⬜ **Playwright tests**: UI-level verification of report rendering and live updates.
+- ✅ **Multi-source verification**: Confirmed agent handles multiple source roots (generated + manual) correctly.
+
+---
+
+## 📘 Maven Central Onboarding Details
+
+### 1. Account & Namespace Verification
+- **Primary Path (Recommended)**: Login to [central.sonatype.com](https://central.sonatype.com/) using GitHub OAuth. Verify the `io.github.sfkamath` namespace via the automated GitHub verification tool.
+- **Legacy Path**: Create a ticket at [issues.sonatype.org](https://issues.sonatype.org/) (Project: OSSRH). 
+    - Create a temporary GitHub repo named after the ticket ID (e.g., `OSSRH-12345`) to prove ownership.
+
+### 2. POM Requirements for Central
+The following plugins must be configured in the parent `pom.xml` before the first release:
+- `maven-source-plugin`: Attach source JARs.
+- `maven-javadoc-plugin`: Attach Javadoc JARs.
+- `maven-gpg-plugin`: Sign artifacts (requires a GPG key).
+- `central-publishing-maven-plugin` (or `nexus-staging-maven-plugin` for legacy).
+
+### 3. CI/CD Secrets
+Ensure the following are added to GitHub Secrets for the `publish` job:
+- `MAVEN_GPG_PASSPHRASE`
+- `MAVEN_GPG_PRIVATE_KEY` (The ASCII armored private key)
+- `SONATYPE_USERNAME` / `SONATYPE_PASSWORD` (or Portal Token)
+
+---
+
+## 📝 Completed Milestones
+- ✅ **UI Overhaul**: Condensed 12px design, IntelliJ icons, and `localStorage` persistence.
+- ✅ **Bytecode Hardening**: Atomic counter initialization and stable class attribution.
+- ✅ **Data Integrity**: Fixed "late-loading" bug that caused count loss for dynamic proxies.
+- ✅ **Maven Plugin**: Released `jvm-hotpath-maven-plugin` for "smart default" configuration.
+- ✅ **Readme Documentation**: Detailed motivation and "Logic X-Ray" vs "CPU Thermometer" analysis.

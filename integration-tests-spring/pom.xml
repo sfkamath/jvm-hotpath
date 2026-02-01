@@ -14,7 +14,9 @@
     <artifactId>jvm-hotpath-integration-tests-spring</artifactId>
 
     <properties>
-        <spring-boot.version>3.4.2</spring-boot.version>
+        <spring-boot.version>3.5.10</spring-boot.version>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>true</maven.install.skip>
     </properties>
 
     <dependencies>
@@ -59,7 +61,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.2.5</version>
                 <executions>
                     <execution>
                         <goals>
@@ -75,7 +76,6 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
                 <executions>
                     <execution>
                         <goals>

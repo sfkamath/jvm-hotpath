@@ -15,7 +15,7 @@
     <packaging>maven-plugin</packaging>
 
     <name>JVM Hotpath Maven Plugin</name>
-    <description>Maven plugin for JVM Hotpath agent integration</description>
+    <description>Low-ceremony Maven integration for JVM Hotpath. Automatically configures the execution analysis agent for your tests and builds.</description>
 
     <dependencies>
         <dependency>

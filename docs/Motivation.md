@@ -1,8 +1,10 @@
 # JVM Hotpath - Runtime Code Execution Analysis for Java
 
-A lightweight Java agent that provides **per-line execution counts** for running Java applications, with live-updating HTML reports. Built to fill the gap left by abandoned tools in the modern Java ecosystem.
+A lightweight Java agent that provides **per-line execution counts** for running Java applications, with live-updating HTML reports. It's purpose-built for the era of **"vibe coding"**, where developers need immediate, line-level insights to understand the behavior of new or rapidly changing code, filling a critical gap in the modern Java ecosystem.
 
 ## The Problem
+
+In modern development workflows, especially during periods of rapid iteration or when integrating AI-generated code, developers frequently introduce significant changes. This **"vibe coding"** approach demands immediate feedback on how new logic actually executes, rather than relying on heavy, slow traditional profiling tools.
 
 ### What We Lost
 
@@ -102,38 +104,44 @@ One tells you it was executed. The other tells you it's a critical hotspot.
 3. **Live-Updating HTML Reports**
     - Beautiful, interactive web interface
     - Syntax-highlighted source code
-    - Visual heatmaps (green = frequently executed, red = rarely)
-    - Live updates while your app runs (optional)
+    - Visual heatmaps (red = frequently executed, green = rarely)
+    - Live updates while your app runs
 
 4. **Modern Java Support**
     - Java 11, 17, 21+ compatible
-    - Works with any framework (Spring Boot, Micronaut, Quarkus, etc.)
+    - Works with common DI frameworks (Spring Boot, Micronaut, etc.)
     - Handles generated classes, proxies, lambdas
 
 ### What It Looks Like
 
-```
-📊 Execution Count Report
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📂 com.example.service
-  📄 DataProcessor.java
-     Line 23: 1 execution       [░]
-     Line 24: 1,423 executions  [████░]
-     Line 25: 47,293 executions [██████████] ← Hotspot!
-     Line 26: 892 executions    [███░]
+The report provides a real-time, interactive view of your code's execution frequency:
+
+```text
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 📊 Project Files  [12]         📄 com/example/DataProcessor.java    ● Live │
+├──────────────────────────────┬─────────────────────────────────────────────┤
+│ 📂 com.example.service       │  12 [      ]  public void process() {       │
+│   📄 DataProcessor.java  [3] │  13 [  1.4k]    for (Data item : items) {   │
+│   📄 Utils.java              │  14 [ 47.3k]      validate(item);           │
+│ 📂 com.example.model         │  15 [  1.4k]      save(item);               │
+│   📄 Data.java               │  16 [      ]    }                           │
+│                              │  17 [      ]  }                             │
+└──────────────────────────────┴─────────────────────────────────────────────┘
 ```
 
 ## Why We Built This
 
 ### The Journey
 
-1. **Started with a need:** Modern Java app (Java 21) needed runtime execution analysis
+This project emerged directly from the frustrations of **"vibe coding"** in a modern Java ecosystem. During rapid refactoring and new feature development (often with large code changes assisted by LLMs), I encountered a critical need:
+
+1. **Started with a need:** Modern Java app (Java 21) needed runtime execution analysis, especially for quickly validating new logic.
 2. **Tried existing tools:**
     - Cobertura → Doesn't work with Java 21
     - Clover → Fails on modern bytecode
     - JaCoCo → Doesn't show execution counts
     - JCov → No binaries, complex build, poor docs
-3. **Built a solution:** This tool, using ASM for instrumentation
+3. **Built a solution:** This tool, using ASM for instrumentation, to provide immediate feedback.
 
 ### Design Philosophy
 
@@ -173,17 +181,17 @@ One tells you it was executed. The other tells you it's a critical hotspot.
 
 ### ❌ This is NOT for:
 
-- **Test coverage metrics** - If you need to report "85% line coverage" to your manager, **use JaCoCo**. This tool is not designed to aggregate test results into a single percentage.
+- **Test coverage metrics** - If you need to report "85% line coverage", **use JaCoCo**. This tool is not designed to aggregate test results into a single percentage.
 - **Performance profiling** - If you need to see exactly *how many milliseconds* a method took, use a CPU profiler (VisualVM, JProfiler).
 - **Production monitoring** - For 24/7 monitoring of throughput/latency, use APM tools (Datadog, New Relic).
 
 ### ✅ This IS for:
 
-- **Runtime behavior analysis** - Understanding which code paths are actually "alive" in production.
-- **Hot-path investigation** - Finding the specific lines that execute millions of times.
-- **Dead code detection** - Finding code that stays at "0" even after weeks of real usage.
-- **Refactoring preparation** - Knowing which lines are high-stakes before you touch them.
-- **Long-running applications** - Watching counts grow in real-time on services or daemons.
+- **Runtime behavior analysis** - Understanding which code paths are actually "alive" at runtime
+- **Hot-path investigation** - Finding the specific lines that execute millions of times
+- **Dead code detection** - Finding code that stays at "0" after real usage of an application
+- **Refactoring preparation** - Knowing which lines are high-stakes before you touch them
+- **Long-running applications** - Watching counts grow in real-time on services or daemons
 
 ## Technical Approach
 
@@ -224,7 +232,6 @@ One tells you it was executed. The other tells you it's a critical hotspot.
 └─────────────────────────────────────┘
 ```
 
-
 ## The Bigger Picture
 
 This tool exists because **the Java ecosystem has a gap**. As Java evolved (9, 11, 17, 21), older tools were left behind. Modern tools focused on different problems (coverage %, not frequency).
@@ -239,10 +246,10 @@ This project is our contribution to filling that gap.
 
 ## Project Status
 
-**Current State:** Fully functional, production-ready for analysis (not recommended for 24/7 production monitoring due to overhead).
+**Current State:** Fully functional, production-ready for analysis (not recommended for 24/7 production monitoring due to overhead)
 
 **Tested With:**
-- Java 11, 17, 21
+- Java 21 (compatible with 11 to 24)
 - Spring Boot 3.x
 - Micronaut 4.x
 - Plain Java applications
@@ -260,19 +267,19 @@ java -javaagent:jvm-hotpath-agent.jar=packages=com.yourapp,flushInterval=5 \
 open target/site/execution-report.html
 ```
 
-See the full [Usage Guide](USAGE.md) for detailed instructions.
+See the full [Usage Guide](../README.md#usage) for detailed instructions.
 
 ## Contributing
 
 We built this because we needed it. If you need it too, let's make it better together.
 
-- 🐛 Found a bug? [Open an issue](issues)
-- 💡 Have an idea? [Start a discussion](discussions)
-- 🔧 Want to contribute? [Submit a PR](pulls)
+- 🐛 Found a bug? [Open an issue](https://github.com/sfkamath/jvm-hotpath/issues)
+- 💡 Have an idea? [Start a discussion](https://github.com/sfkamath/jvm-hotpath/discussions)
+- 🔧 Want to contribute? [Submit a PR](https://github.com/sfkamath/jvm-hotpath/pulls)
 
 ## License
 
-[MIT License](LICENSE) - Free to use, modify, and distribute.
+[MIT License](../LICENSE) - Free to use, modify, and distribute.
 
 ## Acknowledgments
 
@@ -285,4 +292,4 @@ We built this because we needed it. If you need it too, let's make it better tog
 
 **Built with frustration, determination, and a love for good developer tools.**
 
-*"I just wanted to see how many times my code runs. Why is this so hard in 2026?" - Every Java developer trying to use Cobertura with Java 21*
+*"I just wanted to see how many times my code runs. Why is this so hard in 2026?"*

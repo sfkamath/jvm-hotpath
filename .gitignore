@@ -1,8 +1,7 @@
-/report-ui/node_modules/
-/report-ui/dist/
+**/node_modules/
+**/dist/
 target/
-agent/target/
-maven-plugin/target/
+**/target/
 *.versionsBackup
 release.properties
 .DS_Store

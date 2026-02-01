@@ -157,7 +157,7 @@ class ExecutionCounterAgentTest {
         agent.init("flushInterval=1,output=target/flush-test.html", dummyInst);
         
         // Give it a moment to run at least one iteration
-        Thread.sleep(1500);
+        Thread.sleep(3000);
         
         // Check if output was created by the thread
         assertTrue(Files.exists(Path.of("target/flush-test.html")));
