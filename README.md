@@ -1,9 +1,16 @@
+<p align="center">
+  <img src="docs/img.png" width="200" alt="JVM Hotpath Logo">
+</p>
+
 # JVM Hotpath Agent
 
-[![CI](https://github.com/sfkamath/jvm-hotpath/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sfkamath/jvm-hotpath/actions/workflows/ci.yml)
+[![Java CI](https://github.com/sfkamath/jvm-hotpath/actions/workflows/ci.yml/badge.svg)](https://github.com/sfkamath/jvm-hotpath/actions/workflows/ci.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.sfkamath/jvm-hotpath-agent.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.sfkamath%22%20AND%20a:%22jvm-hotpath-agent%22)
 [![Version](https://img.shields.io/github/v/tag/sfkamath/jvm-hotpath)](https://github.com/sfkamath/jvm-hotpath/tags)
+[![License](https://img.shields.io/github/license/sfkamath/jvm-hotpath)](LICENSE)
 
 A Java agent that instruments classes at runtime to record and visualize line-level execution counts. It generates a modern, interactive HTML report with a file tree, global heatmap, and support for both dark and light modes.
+
 
 ## Features
 

@@ -34,13 +34,12 @@ jobs:
           fi
 
   publish:
-    name: Publish to GitHub Packages
+    name: Publish to Maven Central
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
 
     steps:
       - uses: actions/checkout@v4
@@ -51,11 +50,16 @@ jobs:
           distribution: 'corretto'
           cache: 'maven'
 
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
       - name: Setup Maven settings.xml
         uses: whelk-io/maven-settings-xml-action@v22
         with:
-          repositories: '[{ "id": "github", "url": "https://maven.pkg.github.com/sfkamath/jvm-hotpath" }]'
-          servers: '[{ "id": "github", "username": "${{ github.actor }}", "password": "${{ secrets.GITHUB_TOKEN }}" }]'
+          servers: '[{ "id": "central", "username": "${{ secrets.CENTRAL_USERNAME }}", "password": "${{ secrets.CENTRAL_PASSWORD }}" }]'
 
       - name: Bump version and push tag
         id: tag_version
@@ -64,9 +68,9 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tag_prefix: ''
 
-      - name: Deploy to GitHub Packages
+      - name: Deploy to Maven Central
         run: |
           mvn versions:set -DnewVersion=${{ steps.tag_version.outputs.new_tag }} 
-          mvn deploy -DskipTests
+          mvn deploy -Possrh -P!it -DskipTests -Dgpg.passphrase=${{ secrets.GPG_PASSPHRASE }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,37 +2,35 @@ package io.github.sfkamath.jvmhotpath;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 import java.util.jar.JarFile;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 
-/**
- * Java agent that instruments classes to count line executions.
- */
+/** Java agent that instruments classes to count line executions. */
 public final class ExecutionCounterAgent {
 
   private static final Logger logger = Logger.getLogger(ExecutionCounterAgent.class.getName());
 
-  public String[] includePackages = new String[0];
-  public String[] excludePackages = new String[0];
-  public String outputFile = "execution-report.html";
-  public String sourcePath = "";
-  public int flushInterval;
-  public boolean verbose;
-  public boolean keepAlive = true;
+  private String[] includePackages = new String[0];
+  private String[] excludePackages = new String[0];
+  private String outputFile = "execution-report.html";
+  private String sourcePath = "";
+  private int flushInterval;
+  private boolean verbose;
+  private boolean keepAlive = true;
 
   public static void main(String[] args) {
     if (args.length == 0) {
-      logger.info("Usage: java -jar jvm-hotpath-agent.jar --data=<data.json> --output=<report.html>");
+      logger.info(
+          "Usage: java -jar jvm-hotpath-agent.jar --data=<data.json> --output=<report.html>");
       return;
     }
 
@@ -68,75 +66,99 @@ public final class ExecutionCounterAgent {
     logger.info("=== JVM Hotpath Agent Starting ===");
 
     try {
-      Path jarPath = 
+      Path jarPath =
           Path.of(
               ExecutionCounterAgent.class
                   .getProtectionDomain()
                   .getCodeSource()
                   .getLocation()
                   .toURI());
-      if (java.nio.file.Files.isRegularFile(jarPath)) {
+      if (Files.isRegularFile(jarPath)) {
         inst.appendToSystemClassLoaderSearch(new JarFile(jarPath.toFile()));
       }
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "Failed to append agent JAR to system class loader: " + e.getMessage(), e);
+      logger.log(
+          Level.SEVERE, "Failed to append agent JAR to system class loader: " + e.getMessage(), e);
     }
 
     parseArguments(agentArgs);
 
     if (flushInterval > 0) {
-      Thread flushThread = new Thread(() -> {
-        while (true) {
-          try {
-            Thread.sleep(flushInterval * 1000L);
-            if (verbose) logger.info("[FLUSH] Generating report...");
-            ReportGenerator.generateHtmlReport(outputFile, sourcePath, verbose);
-          } catch (InterruptedException e) {
-            break;
-          } catch (Throwable t) {
-            if (verbose) logger.log(Level.WARNING, "Error in flush thread", t);
-          }
-        }
-      }, "JvmHotpath-Flush-Thread");
+      Thread flushThread =
+          new Thread(
+              () -> {
+                while (true) {
+                  try {
+                    Thread.sleep(flushInterval * 1000L);
+                    if (verbose) {
+                      logger.info("[FLUSH] Generating report...");
+                    }
+                    ReportGenerator.generateHtmlReport(outputFile, sourcePath, verbose);
+                  } catch (InterruptedException e) {
+                    break;
+                  } catch (Throwable t) {
+                    if (verbose) {
+                      logger.log(Level.WARNING, "Error in flush thread", t);
+                    }
+                  }
+                }
+              },
+              "JvmHotpath-Flush-Thread");
       flushThread.setDaemon(true);
       flushThread.start();
     }
 
     inst.addTransformer(new ExecutionCountTransformer());
 
-    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-      try {
-        ReportGenerator.generateHtmlReport(outputFile, sourcePath, verbose);
-      } catch (Exception e) {
-        logger.log(Level.SEVERE, "Error generating report during shutdown", e);
-      }
-    }));
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  try {
+                    ReportGenerator.generateHtmlReport(outputFile, sourcePath, verbose);
+                  } catch (Exception e) {
+                    logger.log(Level.SEVERE, "Error generating report during shutdown", e);
+                  }
+                }));
 
     logger.info("=== JVM Hotpath Agent Ready ===\n");
   }
 
   void parseArguments(String agentArgs) {
-    if (agentArgs == null || agentArgs.trim().isEmpty()) return;
+    if (agentArgs == null || agentArgs.trim().isEmpty()) {
+      return;
+    }
 
     String[] rawArgs = agentArgs.split(",");
     List<String> args = new ArrayList<>();
     StringBuilder current = null;
     for (String rawArg : rawArgs) {
       String token = rawArg.trim();
-      if (token.isEmpty()) continue;
+      if (token.isEmpty()) {
+        continue;
+      }
       if (token.contains("=")) {
-        if (current != null) args.add(current.toString());
+        if (current != null) {
+          args.add(current.toString());
+        }
         current = new StringBuilder(token);
       } else {
-        if (current == null) current = new StringBuilder(token);
-        else current.append(",").append(token);
+        if (current == null) {
+          current = new StringBuilder(token);
+        } else {
+          current.append(",").append(token);
+        }
       }
     }
-    if (current != null) args.add(current.toString());
+    if (current != null) {
+      args.add(current.toString());
+    }
 
     for (String arg : args) {
       String[] parts = arg.split("=", 2);
-      if (parts.length != 2) continue;
+      if (parts.length != 2) {
+        continue;
+      }
       String key = parts[0].trim();
       String value = parts[1].trim();
 
@@ -154,11 +176,26 @@ public final class ExecutionCounterAgent {
             excludePackages[i] = excludePackages[i].trim().replace('.', '/');
           }
           break;
-        case "output": outputFile = value; break;
-        case "sourcepath": sourcePath = value; break;
-        case "flushInterval": flushInterval = Integer.parseInt(value); break;
-        case "verbose": verbose = Boolean.parseBoolean(value); break;
-        case "keepAlive": keepAlive = Boolean.parseBoolean(value); break;
+        case "output":
+          outputFile = value;
+          break;
+        case "sourcepath":
+          sourcePath = value;
+          break;
+        case "flushInterval":
+          flushInterval = Integer.parseInt(value);
+          break;
+        case "verbose":
+          verbose = Boolean.parseBoolean(value);
+          break;
+        case "keepAlive":
+          keepAlive = Boolean.parseBoolean(value);
+          break;
+        default:
+          if (verbose) {
+            logger.log(Level.FINE, "Unknown agent argument: {0}={1}", new Object[]{key, value});
+          }
+          break;
       }
     }
   }
@@ -167,30 +204,65 @@ public final class ExecutionCounterAgent {
     return new ExecutionCountTransformer();
   }
 
-  List<String> getIncludePackages() { return Arrays.asList(includePackages); }
-  List<String> getExcludePackages() { return Arrays.asList(excludePackages); }
-  int getFlushInterval() { return flushInterval; }
-  String getOutputFile() { return outputFile; }
-  String getSourcePath() { return sourcePath; }
-  boolean isVerbose() { return verbose; }
+  List<String> getIncludePackages() {
+    return Arrays.asList(includePackages);
+  }
+
+  List<String> getExcludePackages() {
+    return Arrays.asList(excludePackages);
+  }
+
+  int getFlushInterval() {
+    return flushInterval;
+  }
+
+  String getOutputFile() {
+    return outputFile;
+  }
+
+  String getSourcePath() {
+    return sourcePath;
+  }
+
+  boolean isVerbose() {
+    return verbose;
+  }
 
   private class ExecutionCountTransformer implements ClassFileTransformer {
     @Override
-    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
-                            ProtectionDomain protectionDomain, byte[] classfileBuffer) {
-      if (className == null) return null;
-            // Don't instrument our own core classes
-            if (className.startsWith("io/github/sfkamath/jvmhotpath/Execution") ||
-                className.startsWith("io/github/sfkamath/jvmhotpath/Report")) {
-              return null;
-            }      if (className.startsWith("java/") || className.startsWith("javax/") || 
-          className.startsWith("sun/") || className.startsWith("jdk/") || 
-          className.startsWith("com/sun/")) return null;
-      if (className.startsWith("io/micronaut/") || className.startsWith("jakarta/") || 
-          className.startsWith("org/slf4j/") || className.startsWith("ch/qos/logback/") || 
-          className.startsWith("io/netty/")) return null;
-      if (className.contains("$Definition") || 
-          className.contains("$Introspection") || className.contains("$Intercepted")) return null;
+    public byte[] transform(
+        ClassLoader loader,
+        String className,
+        Class<?> classBeingRedefined,
+        ProtectionDomain protectionDomain,
+        byte[] classfileBuffer) {
+      if (className == null) {
+        return null;
+      }
+      // Don't instrument our own core classes
+      if (className.startsWith("io/github/sfkamath/jvmhotpath/Execution")
+          || className.startsWith("io/github/sfkamath/jvmhotpath/Report")) {
+        return null;
+      }
+      if (className.startsWith("java/")
+          || className.startsWith("javax/")
+          || className.startsWith("sun/")
+          || className.startsWith("jdk/")
+          || className.startsWith("com/sun/")) {
+        return null;
+      }
+      if (className.startsWith("io/micronaut/")
+          || className.startsWith("jakarta/")
+          || className.startsWith("org/slf4j/")
+          || className.startsWith("ch/qos/logback/")
+          || className.startsWith("io/netty/")) {
+        return null;
+      }
+      if (className.contains("$Definition")
+          || className.contains("$Introspection")
+          || className.contains("$Intercepted")) {
+        return null;
+      }
 
       for (String exclude : excludePackages) {
         if (className.startsWith(exclude)) {

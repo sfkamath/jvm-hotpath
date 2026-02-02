@@ -28,7 +28,8 @@ public final class ReportGenerator {
   private static final ObjectMapper mapper = new ObjectMapper();
 
   /** Generates the report from current memory state. */
-  public static void generateHtmlReport(String outputPath, String sourcePath, boolean verbose) throws IOException {
+  public static void generateHtmlReport(String outputPath, String sourcePath, boolean verbose)
+      throws IOException {
     List<FileData> data = collectData(sourcePath, verbose);
     ReportPayload payload = new ReportPayload(System.currentTimeMillis(), data);
     String jsonData = mapper.writeValueAsString(payload);
@@ -106,8 +107,9 @@ public final class ReportGenerator {
 
         FileData data =
             fileDataMap.computeIfAbsent(
-                key, k -> new FileData(relativePath, new HashMap<>(), sourceFile.content(), project));
-        
+                key,
+                k -> new FileData(relativePath, new HashMap<>(), sourceFile.content(), project));
+
         // Merge with any existing counts
         Map<Integer, Long> currentCounts = new HashMap<>(data.getCounts());
         counts.forEach((line, val) -> currentCounts.merge(line, val, Long::sum));
@@ -120,7 +122,8 @@ public final class ReportGenerator {
     return fileDataList;
   }
 
-  private static void renderReport(ReportPayload payload, ReportPaths paths, boolean verbose) throws IOException {
+  private static void renderReport(ReportPayload payload, ReportPaths paths, boolean verbose)
+      throws IOException {
     String template = loadTemplate();
     if (template == null) {
       logger.severe("Could not load report template.");
@@ -139,7 +142,9 @@ public final class ReportGenerator {
 
     Files.writeString(paths.htmlPath, finalHtml);
     if (verbose) {
-      logger.info("Report written to: file:///" + paths.htmlPath.toAbsolutePath().toString().replace("\\", "/"));
+      logger.info(
+          "Report written to: file:///"
+              + paths.htmlPath.toAbsolutePath().toString().replace("\\", "/"));
     }
 
     copyResource(paths.outputDir, "/io/github/sfkamath/jvmhotpath/report-app.js", "report-app.js");
@@ -183,8 +188,10 @@ public final class ReportGenerator {
     Map<Path, SourceRoot> deduplicated = new LinkedHashMap<>();
     for (String s : sourcePath.split(File.pathSeparator)) {
       String trimmed = s.trim();
-      if (trimmed.isEmpty()) continue;
-      
+      if (trimmed.isEmpty()) {
+        continue;
+      }
+
       Path path = Path.of(trimmed).toAbsolutePath().normalize();
       if (Files.exists(path) && Files.isDirectory(path)) {
         deduplicated.putIfAbsent(path, new SourceRoot(path, deriveProjectName(path)));

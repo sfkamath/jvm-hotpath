@@ -4,7 +4,7 @@ import jakarta.inject.Singleton;
 
 @Singleton
 public class MicronautGreetingService {
-    public String getGreeting() {
-        return "Hello from Micronaut!";
-    }
+  public String getGreeting() {
+    return "Hello from Micronaut!";
+  }
 }

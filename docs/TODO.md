@@ -8,15 +8,24 @@ Date: 2026-02-01
 - ✅ **Fix live refresh**: Switched from JSONP to `fetch()` with pure JSON for HTTP loads.
 - ✅ **Standardized Logging**: Replaced `System.out` with `java.util.logging`.
 - ✅ **Framework Stability**: Verified Micronaut/Netty doesn't crash during instrumentation.
-- ⬜ **Maven Central publishing setup**:
-    - ⬜ Open Sonatype OSSRH ticket or verify on Central Portal.
+- ✅ **Maven Central publishing setup**:
+    - ✅ Verify io.github.sfkamath on Central Portal.
     - ✅ Configure GPG signing plugin in `pom.xml` (via `ossrh` profile).
     - ✅ Add `maven-javadoc-plugin` and `maven-source-plugin` (via `ossrh` profile).
     - ✅ Add required POM metadata (name, description, url, licenses, developers, scm).
+    - ✅ Add `central-publishing-maven-plugin` for automated deployment.
+    - ✅ Configure GitHub Actions for GPG signing and Central Portal deployment.
 - ✅ **Basic CI**: GitHub Actions workflow running on Java 21.
 - ✅ **Clean git history**: Squash/rebase into a professional public-friendly history.
 - ✅ **LICENSE file**: Add MIT License to the project root.
 - ✅ **GRADLE.md**: Comprehensive usage guide for Gradle users.
+
+## 🚀 Go Live Checklist (Final Release Activities)
+
+- ✅ **Enable Auto-Publish**: Add `<autoPublish>true</autoPublish>` and `<waitUntil>validated</waitUntil>` to `pom.xml`.
+- ✅ **Public Visibility**: Change repository visibility to Public.
+- ✅ **Maven Central Badge**: Add the `io.github.sfkamath` central badge to `README.md` once first release is live.
+- ✅ **Badge Maintenance**: Clean up and standardize all `README.md` badges (Java CI, Version, License).
 
 ## 🟡 Important (Should Have)
 

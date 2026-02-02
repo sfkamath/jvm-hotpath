@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- Allow public fields in ExecutionCounterAgent for configuration -->
+    <Match>
+        <Class name="io.github.sfkamath.jvmhotpath.ExecutionCounterAgent" />
+        <Bug pattern="PA_PUBLIC_PRIMITIVE_ATTRIBUTE" />
+    </Match>
+    <!-- Allow missing default in switch if all relevant cases are covered -->
+    <Match>
+        <Class name="io.github.sfkamath.jvmhotpath.ExecutionCounterAgent" />
+        <Bug pattern="SF_SWITCH_NO_DEFAULT" />
+    </Match>
+</FindBugsFilter>
