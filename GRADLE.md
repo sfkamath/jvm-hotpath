@@ -1,5 +1,7 @@
 # Gradle Support for JVM Hotpath
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.sfkamath/jvm-hotpath-agent)](https://central.sonatype.com/artifact/io.github.sfkamath/jvm-hotpath-agent)
+
 While a native Gradle plugin is planned, you can easily use JVM Hotpath with Gradle by manually attaching the agent JAR to your `JavaExec` or `Test` tasks.
 
 ## Basic Configuration
@@ -12,14 +14,14 @@ The agent JAR is downloaded as a dependency and attached via `jvmArgs`.
 val jvmHotpath by configurations.creating
 
 dependencies {
-    // Replace with the latest version
-    jvmHotpath("io.github.sfkamath:jvm-hotpath-agent:0.1.0")
+    // Use the latest version from the Maven Central badge at the top of this file
+    jvmHotpath("io.github.sfkamath:jvm-hotpath-agent:0.1.+")
 }
 
 tasks.named<JavaExec>("run") {
     val agentJar = jvmHotpath.singleFile.absolutePath
     // Customize your packages and flush interval
-    val agentArgs = "packages=com.example,flushInterval=5"
+    val agentArgs = "packages=com.example,sourcepath=src/main/java,flushInterval=5"
     jvmArgs("-javaagent:${agentJar}=${agentArgs}")
 }
 
@@ -39,13 +41,13 @@ configurations {
 }
 
 dependencies {
-    // Replace with the latest version
-    jvmHotpath 'io.github.sfkamath:jvm-hotpath-agent:0.1.0'
+    // Use the latest version from the Maven Central badge at the top of this file
+    jvmHotpath 'io.github.sfkamath:jvm-hotpath-agent:0.1.+'
 }
 
 tasks.named('run', JavaExec) {
     def agentJar = configurations.jvmHotpath.singleFile.absolutePath
-    def agentArgs = "packages=com.example,flushInterval=5"
+    def agentArgs = "packages=com.example,sourcepath=src/main/java,flushInterval=5"
     jvmArgs "-javaagent:${agentJar}=${agentArgs}"
 }
 
