@@ -271,8 +271,12 @@
         ::-webkit-scrollbar-thumb:hover { background: var(--text-color); }
 
         .badge { background: var(--accent-color); color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; margin-left: auto; }
-        .theme-toggle { background: none; border: 1px solid var(--border-color); color: var(--text-color); padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s; }
-        .theme-toggle:hover { background: var(--hover-color); }
+        .badge.snapshot { background: #f59e0b; }
+        .theme-toggle, .snapshot-btn { background: none; border: 1px solid var(--border-color); color: var(--text-color); padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+        .theme-toggle:hover, .snapshot-btn:hover { background: var(--hover-color); }
+        .snapshot-btn.active { background: #f59e0b; color: white; border-color: #f59e0b; }
+        .snapshot-btn.clear { border-color: transparent; opacity: 0.7; }
+        .snapshot-btn.clear:hover { opacity: 1; text-decoration: underline; }
         
         .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--gutter-text); font-size: 14px; gap: 10px; }
         
@@ -317,7 +321,7 @@
                     <span class="badge">{{ totalFiles }}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: normal; color: var(--gutter-text);">
-                    <span>All</span>
+                    <span>All files</span>
                     <label class="switch" title="Show all source files (including 0 hotpath)">
                         <input type="checkbox" :checked="showAll" @change="toggleShowAll">
                         <span class="slider"></span>
@@ -346,6 +350,18 @@
                 </div>
                 
                 <div style="display: flex; align-items: center; gap: 15px; flex-shrink: 0;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="snapshot-btn" :class="{ active: isDiffModeActive }" @click="toggleDiffMode" title="Enable Diff Mode to see execution counts relative to this moment. Click again to 'Lap' (re-zero).">
+                            <span :style="{ color: isDiffModeActive ? '#4ade80' : 'var(--gutter-text)' }">
+                                {{ isDiffModeActive ? '●' : '○' }}
+                            </span>
+                            Diff Mode
+                        </button>
+                        <button v-if="isDiffModeActive" class="snapshot-btn clear" @click="stopDiffMode" title="Return to Absolute Totals">
+                            ✕ Clear
+                        </button>
+                    </div>
+
                     <span :title="liveError" style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: help;">
                         <span :style="{ color: isLive ? '#4ade80' : (liveError ? '#ef4444' : '#94a3b8') }">●</span>
                         <span style="color: var(--gutter-text);">{{ isLive ? 'Live' : 'Offline' }}</span>
@@ -358,7 +374,7 @@
                     </div>
 
                     <span v-if="totalExecutions > 0" style="font-size: 12px; color: var(--gutter-text);">
-                        Total: <strong>{{ formatBigCount(totalExecutions) }}</strong>
+                        {{ isDiffModeActive ? 'Session' : 'Total' }}: <strong>{{ formatBigCount(totalExecutions) }}</strong>
                     </span>
                     
                     <button class="theme-toggle" @click="toggleTheme">

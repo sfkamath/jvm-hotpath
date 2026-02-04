@@ -71,6 +71,10 @@ const formatBigCount = (count: number) => new Intl.NumberFormat().format(count);
 
 const lastTotals = new Map<string, number>();
 
+// Global State for Diff Mode
+const isDiffModeActive = ref(false);
+const diffBaseline = ref<Map<string, Record<string, number>>>(new Map());
+
 const ICONS = {
   FOLDER_OPEN: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 4.5V13.5H14.5V6.5H8.5L6.5 4.5H1.5Z" fill="#9AA7B0" stroke="#9AA7B0" stroke-width="1" stroke-linejoin="round"/><path d="M1.5 6.5L14.5 6.5L13.5 13.5L2.5 13.5L1.5 6.5Z" fill="#C0C7CE"/></svg>`,
   FOLDER_CLOSED: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 3.5V12.5H14.5V5.5H8.5L6.5 3.5H1.5Z" fill="#9AA7B0" stroke="#9AA7B0" stroke-width="1" stroke-linejoin="round"/></svg>`,
@@ -95,6 +99,11 @@ const buildTree = (files: FileData[]): TreeNode[] => {
     let currentLevel = root;
     let currentPath = '';
 
+    const fileSum = Object.values(file.counts).reduce((a, b) => a + b, 0);
+    const key = `${project}::${file.path}`;
+    const oldFileTotal = lastTotals.get(key) || 0;
+    const hasNewHits = fileSum > oldFileTotal;
+
     segments.forEach((segment, index) => {
       currentPath += (currentPath ? '/' : '') + segment;
       let node = currentLevel.find((n) => n.name === segment && n.depth === index);
@@ -113,25 +122,21 @@ const buildTree = (files: FileData[]): TreeNode[] => {
         currentLevel.push(node);
       }
 
+      node.totalCount += fileSum;
+      node.formattedTotal = formatCount(node.totalCount);
+      
+      if (hasNewHits && oldFileTotal > 0) {
+        node.flash = true;
+        setTimeout(() => (node.flash = false), 1000);
+      }
+
       if (index === segments.length - 1) {
         node.children = null;
         node.filePath = file.path;
         node.project = file.project;
         node.lines = file.content.split(/\r?\n/);
         node.counts = file.counts;
-        const sum = Object.values(file.counts).reduce((a, b) => a + b, 0);
-        node.totalCount = sum;
-        node.formattedTotal = formatCount(sum);
-
-        const key = `${project}::${file.path}`;
-        const oldTotal = lastTotals.get(key) || 0;
-        if (sum > oldTotal) {
-          if (oldTotal > 0) {
-            node.flash = true;
-            setTimeout(() => (node.flash = false), 1000);
-          }
-          lastTotals.set(key, sum);
-        }
+        lastTotals.set(key, fileSum);
       } else if (node.children) {
         node.project = project;
         currentLevel = node.children;
@@ -258,6 +263,18 @@ const TreeNode = defineComponent({
       }
     };
 
+    const displayCount = computed(() => {
+      const current = props.node.totalCount || 0;
+      if (!isDiffModeActive.value) {
+        return props.node.formattedTotal || formatCount(current);
+      }
+      
+      const baseline = diffBaseline.value.get(props.node.path);
+      const baselineTotal = baseline ? baseline["_total"] : 0;
+      const diff = Math.max(0, current - baselineTotal);
+      return formatCount(diff);
+    });
+
     const handleChevronClick = (e: MouseEvent) => {
       e.stopPropagation();
       if (isFolder.value) {
@@ -270,7 +287,7 @@ const TreeNode = defineComponent({
       }
     };
 
-    return { isOpen, isFolder, toggle, handleChevronClick, icon };
+    return { isOpen, isFolder, toggle, handleChevronClick, icon, displayCount };
   },
   template: `
     <div class="tree-node-wrapper" :class="{ 'is-folder': isFolder, 'is-open': isOpen }">
@@ -287,8 +304,8 @@ const TreeNode = defineComponent({
 
         <span class="icon" v-html="icon"></span>
         <span class="node-name">{{ node.name }}</span>
-        <span v-if="!isFolder && node.totalCount > 0" class="node-count">
-          {{ node.formattedTotal }}
+        <span v-if="node.totalCount > 0" class="node-count">
+          {{ displayCount }}
         </span>
       </div>
       <div v-if="isFolder && isOpen" class="tree-group">
@@ -324,6 +341,30 @@ createApp({
     const isLive = ref(false);
     const liveError = ref<string | null>(null);
 
+    const toggleDiffMode = () => {
+      // Taking a new baseline acts as a "Lap" - it re-zeros the counts since this moment
+      diffBaseline.value.clear();
+      const traverse = (nodes: TreeNode[]) => {
+        nodes.forEach(node => {
+          const baseline: Record<string, number> = { "_total": node.totalCount };
+          if (!node.children && node.counts) {
+            Object.entries(node.counts).forEach(([line, count]) => {
+              baseline[line] = count;
+            });
+          }
+          diffBaseline.value.set(node.path, baseline);
+          if (node.children) traverse(node.children);
+        });
+      };
+      traverse(fileTree.value);
+      isDiffModeActive.value = true;
+    };
+
+    const stopDiffMode = () => {
+      isDiffModeActive.value = false;
+      diffBaseline.value.clear();
+    };
+
     const sidebarWidth = ref(parseInt(localStorage.getItem('sidebarWidth') || '300'));
     const isResizing = ref(false);
     const treeContainer = ref<HTMLElement | null>(null);
@@ -352,17 +393,32 @@ createApp({
     };
     const globalMax = computed(() => {
       let max = 1;
-      rawData.value.forEach((f) => {
-        Object.values(f.counts).forEach((cnt) => {
-          if (cnt > max) max = cnt;
+      const traverse = (nodes: TreeNode[]) => {
+        nodes.forEach(node => {
+          if (!node.children) { // Only files contribute to heatmap max
+            const current = node.totalCount || 0;
+            const baseline = diffBaseline.value.get(node.path);
+            const baselineTotal = baseline ? baseline["_total"] : 0;
+            const diff = isDiffModeActive.value ? Math.max(0, current - baselineTotal) : current;
+            if (diff > max) max = diff;
+          } else {
+            traverse(node.children);
+          }
         });
-      });
+      };
+      traverse(fileTree.value);
       return max;
     });
     const totalFiles = computed(() => filteredFiles.value.length);
-    const totalExecutions = computed(() =>
-      rawData.value.reduce((sum, file) => sum + Object.values(file.counts).reduce((a, b) => a + b, 0), 0)
-    );
+    const totalExecutions = computed(() => {
+      return fileTree.value.reduce((sum, node) => {
+        const current = node.totalCount || 0;
+        const baseline = diffBaseline.value.get(node.path);
+        const baselineTotal = baseline ? baseline["_total"] : 0;
+        const diff = isDiffModeActive.value ? Math.max(0, current - baselineTotal) : current;
+        return sum + diff;
+      }, 0);
+    });
 
     initTheme();
 
@@ -514,8 +570,14 @@ createApp({
       }
     });
 
-    const getExecutionCount = (lineNum: number) =>
-      Number(selectedFile.value?.counts?.[lineNum.toString()] || 0);
+    const getExecutionCount = (lineNum: number) => {
+      if (!selectedFile.value) return 0;
+      const current = Number(selectedFile.value.counts?.[lineNum.toString()] || 0);
+      if (!isDiffModeActive.value) return current;
+      
+      const baseline = diffBaseline.value.get(selectedFile.value.path)?.[lineNum.toString()] || 0;
+      return Math.max(0, current - baseline);
+    };
 
     const getHeatmapColor = (count: number) => {
       return calculateHeatmapColor(count, globalMax.value);
@@ -542,7 +604,10 @@ createApp({
       toggleTheme,
       isDarkMode,
       isLive,
-      liveError
+      liveError,
+      isDiffModeActive,
+      toggleDiffMode,
+      stopDiffMode
     };
   }
 }).mount('#app');
