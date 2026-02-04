@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/img.png" width="200" alt="JVM Hotpath Logo">
+  <img src="agent/src/main/resources/io/github/sfkamath/jvmhotpath/favicon.png" width="200" alt="JVM Hotpath Logo">
 </p>
 
 # JVM Hotpath Agent
@@ -122,7 +122,8 @@ Add this to your `pom.xml`:
 <plugin>
     <groupId>io.github.sfkamath</groupId>
     <artifactId>jvm-hotpath-maven-plugin</artifactId>
-    <version>0.1.0</version>
+    <!-- Use the latest version from the Maven Central badge at the top of this file -->
+    <version>0.1.1</version>
     <executions>
         <execution>
             <goals>
@@ -159,7 +160,8 @@ Add this to your `pom.xml`:
 <plugin>
     <groupId>io.github.sfkamath</groupId>
     <artifactId>jvm-hotpath-maven-plugin</artifactId>
-    <version>0.1.0</version>
+    <!-- Use the latest version from the Maven Central badge at the top of this file -->
+    <version>0.1.1</version>
     <executions>
         <execution>
             <goals>
@@ -226,7 +228,8 @@ Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
             <plugin>
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
-                <version>0.1.0</version>
+                <!-- Use the latest version from the Maven Central badge at the top of this file -->
+                <version>0.1.1</version>
                 <executions>
                     <execution>
                         <goals><goal>prepare-agent</goal></goals>
@@ -305,7 +308,7 @@ The JAR will be located at `agent/target/jvm-hotpath-agent-0.1.0.jar`.
 **Run with Agent:**
 
 ```bash
-java -javaagent:${PATH_TO_AGENT_JAR}=packages=com.example,flushInterval=5,output=target/site/execution-report.html -jar your-app.jar
+java -javaagent:${PATH_TO_AGENT_JAR}=packages=com.example,sourcepath=src/main/java,flushInterval=5,output=target/site/execution-report.html -jar your-app.jar
 ```
 
 #### Multi-source invocation

@@ -148,6 +148,7 @@ public final class ReportGenerator {
     }
 
     copyResource(paths.outputDir, "/io/github/sfkamath/jvmhotpath/report-app.js", "report-app.js");
+    copyResource(paths.outputDir, "/io/github/sfkamath/jvmhotpath/favicon.png", "favicon.png");
   }
 
   private static SourceFile findSourceContent(

@@ -15,7 +15,8 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    classes = SampleApp.class)
+    classes = SampleApp.class,
+    properties = "spring.main.banner-mode=off")
 class SpringBootAgentIT {
 
   @LocalServerPort private int port;
@@ -83,8 +84,8 @@ class SpringBootAgentIT {
         serviceFound = true;
         final boolean[] wrapper = new boolean[]{false};
         counts
-            .fields()
-            .forEachRemaining(
+            .properties()
+            .forEach(
                 entry -> {
                   int val = entry.getValue().asInt();
                   if (val >= 5) {
