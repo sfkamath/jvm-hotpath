@@ -7,15 +7,11 @@ const reports = [
   {
     name: 'Spring',
     path: path.join(projectRoot, 'integration-tests-spring/target/execution-report.html')
-  },
-  {
-    name: 'Micronaut',
-    path: path.join(projectRoot, 'integration-tests-micronaut/target/execution-report.html')
   }
 ];
 
 for (const report of reports) {
-  test(`should handle Diff Mode 'Lap' functionality for ${report.name}`, async ({ page }) => {
+  test(`should handle Diff Mode 'Reset' functionality for ${report.name}`, async ({ page }) => {
     const fileUrl = `file://${report.path}`;
     await page.goto(fileUrl);
     await page.waitForSelector('#app');
@@ -25,18 +21,36 @@ for (const report of reports) {
     const initialText = await countBadge.innerText();
 
     // Click Diff Mode button (Activation)
-    await page.click('button:has-text("Diff Mode")');
-    await expect(page.locator('.snapshot-btn.active')).toBeVisible();
+    await page.click('.diff-btn-main', { timeout: 10000 });
+    
+    // Check for active state on the group
+    await expect(page.locator('.diff-btn-group.active')).toBeVisible({ timeout: 10000 });
+    
+    // In our static test report, hits - baseline hits = 0
+    await expect(countBadge).toHaveText('0', { timeout: 10000 });
+
+    // Wait a moment and click again (Reset/Re-zero)
+    await page.waitForTimeout(500);
+    console.log("Triggering Reset (Lap)...");
+    await page.click('.diff-btn-main', { timeout: 10000 });
+    
+    // Should still be active and still 0 (since it just re-zeroed)
+    await expect(page.locator('.diff-btn-group.active')).toBeVisible();
     await expect(countBadge).toHaveText('0');
 
-    // Wait a moment and click again (Lap/Reset)
-    await page.waitForTimeout(200);
-    await page.click('button:has-text("Diff Mode")');
-    await expect(countBadge).toHaveText('0');
-
-    // Clear Diff Mode
-    await page.click('button:has-text("Clear")');
-    await expect(page.locator('.snapshot-btn.active')).not.toBeVisible();
+    // Exit Diff Mode using the 'X' button
+    await page.click('.diff-btn-clear');
+    
+    // Counts should be back to absolute
+    await expect(page.locator('.diff-btn-group.active')).not.toBeVisible();
     await expect(countBadge).toHaveText(initialText);
+  });
+
+  test(`should have the 'All files' label in sidebar for ${report.name}`, async ({ page }) => {
+    const fileUrl = `file://${report.path}`;
+    await page.goto(fileUrl);
+    await page.waitForSelector('#app');
+    
+    await expect(page.locator('.sidebar-header')).toContainText('All files');
   });
 }

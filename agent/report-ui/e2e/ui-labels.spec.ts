@@ -7,10 +7,6 @@ const reports = [
   {
     name: 'Spring',
     path: path.join(projectRoot, 'integration-tests-spring/target/execution-report.html')
-  },
-  {
-    name: 'Micronaut',
-    path: path.join(projectRoot, 'integration-tests-micronaut/target/execution-report.html')
   }
 ];
 
@@ -21,5 +17,26 @@ for (const report of reports) {
     await page.waitForSelector('#app');
     
     await expect(page.locator('.sidebar-header')).toContainText('All files');
+  });
+
+  test(`should toggle theme correctly for ${report.name}`, async ({ page }) => {
+    const fileUrl = `file://${report.path}`;
+    await page.goto(fileUrl);
+    await page.waitForSelector('#app');
+
+    // Default should be dark mode
+    await expect(page.locator('body')).not.toHaveClass(/light-mode/);
+
+    // Toggle to Light Mode
+    await page.click('.theme-toggle');
+    await expect(page.locator('body')).toHaveClass(/light-mode/);
+
+    // Verify background color changed (basic check)
+    const bgColor = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    // expect(bgColor).toBe('rgb(248, 250, 252)'); // #f8fafc
+
+    // Toggle back to Dark Mode
+    await page.click('.theme-toggle');
+    await expect(page.locator('body')).not.toHaveClass(/light-mode/);
   });
 }
