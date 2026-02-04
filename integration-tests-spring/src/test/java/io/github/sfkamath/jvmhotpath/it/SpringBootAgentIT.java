@@ -82,10 +82,10 @@ class SpringBootAgentIT {
 
       if (path.contains("GreetingService.java")) {
         serviceFound = true;
-        final boolean[] wrapper = new boolean[] {false};
+        final boolean[] wrapper = new boolean[]{false};
         counts
-            .fields()
-            .forEachRemaining(
+            .properties()
+            .forEach(
                 entry -> {
                   int val = entry.getValue().asInt();
                   if (val >= 5) {

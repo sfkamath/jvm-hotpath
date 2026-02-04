@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/img.png" width="200" alt="JVM Hotpath Logo">
+  <img src="agent/src/main/resources/io/github/sfkamath/jvmhotpath/favicon.png" width="200" alt="JVM Hotpath Logo">
 </p>
 
 # JVM Hotpath Agent

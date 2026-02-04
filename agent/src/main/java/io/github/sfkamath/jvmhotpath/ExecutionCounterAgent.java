@@ -193,7 +193,7 @@ public final class ExecutionCounterAgent {
           break;
         default:
           if (verbose) {
-            logger.log(Level.FINE, "Unknown agent argument: {0}={1}", new Object[] {key, value});
+            logger.log(Level.FINE, "Unknown agent argument: {0}={1}", new Object[]{key, value});
           }
           break;
       }
