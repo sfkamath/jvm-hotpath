@@ -12,6 +12,47 @@
     <link id="prism-css" href="" rel="stylesheet" />
     
     <style>
+        /* driver.js themed overrides */
+        .driver-popover {
+            background-color: var(--sidebar-bg) !important;
+            color: var(--text-color) !important;
+            border: 1px solid var(--border-color) !important;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4) !important;
+        }
+        .driver-popover-title {
+            color: var(--accent-color) !important;
+            font-family: var(--ui-font) !important;
+        }
+        .driver-popover-description {
+            color: var(--text-color) !important;
+            opacity: 0.9;
+            font-family: var(--ui-font) !important;
+        }
+        .driver-popover-footer button {
+            background-color: var(--bg-color) !important;
+            color: var(--text-color) !important;
+            border: 1px solid var(--border-color) !important;
+            text-shadow: none !important;
+        }
+        .driver-popover-footer button:hover {
+            background-color: var(--hover-color) !important;
+        }
+        .driver-popover-navigation-btns .driver-popover-next-btn {
+            background-color: var(--accent-color) !important;
+            color: white !important;
+            border: none !important;
+        }
+        .driver-popover-arrow {
+            border-color: var(--sidebar-bg) !important;
+        }
+        /* Fix arrow transparency for themed popover */
+        .driver-popover-arrow-side-left { border-right-color: transparent !important; border-bottom-color: transparent !important; border-top-color: transparent !important; }
+        .driver-popover-arrow-side-right { border-left-color: transparent !important; border-bottom-color: transparent !important; border-top-color: transparent !important; }
+        .driver-popover-arrow-side-top { border-right-color: transparent !important; border-bottom-color: transparent !important; border-left-color: transparent !important; }
+        .driver-popover-arrow-side-bottom { border-left-color: transparent !important; border-top-color: transparent !important; border-right-color: transparent !important; }
+
+        .driver-active .driver-overlay,.driver-active *{pointer-events:none}.driver-active .driver-active-element,.driver-active .driver-active-element *,.driver-popover,.driver-popover *{pointer-events:auto}@keyframes animate-fade-in{0%{opacity:0}to{opacity:1}}.driver-fade .driver-overlay{animation:animate-fade-in .2s ease-in-out}.driver-fade .driver-popover{animation:animate-fade-in .2s}.driver-popover{all:unset;box-sizing:border-box;color:#2d2d2d;margin:0;padding:15px;border-radius:5px;min-width:250px;max-width:300px;box-shadow:0 1px 10px #0006;z-index:1000000000;position:fixed;top:0;right:0;background-color:#fff}.driver-popover *{font-family:Helvetica Neue,Inter,ui-sans-serif,"Apple Color Emoji",Helvetica,Arial,sans-serif}.driver-popover-title{font:19px/normal sans-serif;font-weight:700;display:block;position:relative;line-height:1.5;zoom:1;margin:0}.driver-popover-close-btn{all:unset;position:absolute;top:0;right:0;width:32px;height:28px;cursor:pointer;font-size:18px;font-weight:500;color:#d2d2d2;z-index:1;text-align:center;transition:color;transition-duration:.2s}.driver-popover-close-btn:hover,.driver-popover-close-btn:focus{color:#2d2d2d}.driver-popover-title[style*=block]+.driver-popover-description{margin-top:5px}.driver-popover-description{margin-bottom:0;font:14px/normal sans-serif;line-height:1.5;font-weight:400;zoom:1}.driver-popover-footer{margin-top:15px;text-align:right;zoom:1;display:flex;align-items:center;justify-content:space-between}.driver-popover-progress-text{font-size:13px;font-weight:400;color:#727272;zoom:1}.driver-popover-footer button{all:unset;display:inline-block;box-sizing:border-box;padding:3px 7px;text-decoration:none;text-shadow:1px 1px 0 #fff;background-color:#fff;color:#2d2d2d;font:12px/normal sans-serif;cursor:pointer;outline:0;zoom:1;line-height:1.3;border:1px solid #ccc;border-radius:3px}.driver-popover-footer .driver-popover-btn-disabled{opacity:.5;pointer-events:none}:not(body):has(>.driver-active-element){overflow:hidden!important}.driver-no-interaction,.driver-no-interaction *{pointer-events:none!important}.driver-popover-footer button:hover,.driver-popover-footer button:focus{background-color:#f7f7f7}.driver-popover-navigation-btns{display:flex;flex-grow:1;justify-content:flex-end}.driver-popover-navigation-btns button+button{margin-left:4px}.driver-popover-arrow{content:"";position:absolute;border:5px solid #fff}.driver-popover-arrow-side-over{display:none}.driver-popover-arrow-side-left{left:100%;border-right-color:transparent;border-bottom-color:transparent;border-top-color:transparent}.driver-popover-arrow-side-right{right:100%;border-left-color:transparent;border-bottom-color:transparent;border-top-color:transparent}.driver-popover-arrow-side-top{top:100%;border-right-color:transparent;border-bottom-color:transparent;border-left-color:transparent}.driver-popover-arrow-side-bottom{bottom:100%;border-left-color:transparent;border-top-color:transparent;border-right-color:transparent}.driver-popover-arrow-side-center{display:none}.driver-popover-arrow-side-left.driver-popover-arrow-align-start,.driver-popover-arrow-side-right.driver-popover-arrow-align-start{top:15px}.driver-popover-arrow-side-top.driver-popover-arrow-align-start,.driver-popover-arrow-side-bottom.driver-popover-arrow-align-start{left:15px}.driver-popover-arrow-align-end.driver-popover-arrow-side-left,.driver-popover-arrow-align-end.driver-popover-arrow-side-right{bottom:15px}.driver-popover-arrow-side-top.driver-popover-arrow-align-end,.driver-popover-arrow-side-bottom.driver-popover-arrow-align-end{right:15px}.driver-popover-arrow-side-left.driver-popover-arrow-align-center,.driver-popover-arrow-side-right.driver-popover-arrow-align-center{top:50%;margin-top:-5px}.driver-popover-arrow-side-top.driver-popover-arrow-align-center,.driver-popover-arrow-side-bottom.driver-popover-arrow-align-center{left:50%;margin-left:-5px}.driver-popover-arrow-none{display:none}
+
         :root {
             /* Theme Colors */
             --bg-color: #0f172a;
@@ -313,6 +354,7 @@
             margin-left: 10px; 
             border-left: 1px solid var(--border-color); 
         }
+        body.light-mode .tree-group { border-left: none; }
 
         .chevron {
             width: 12px;
@@ -333,6 +375,17 @@
         .node-name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
         .node-count { font-size: 10px; color: var(--gutter-text); margin-left: 6px; font-weight: normal; }
         .active .node-count { color: rgba(255,255,255,0.8); }
+
+        ::-webkit-scrollbar { width: 12px; height: 12px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 6px; border: 3px solid var(--bg-color); background-clip: content-box; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-color); }
+
+        .badge { background: var(--accent-color); color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; margin-left: auto; }
+        .icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; }
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--gutter-text); font-size: 14px; gap: 10px; }
+
+        ::-webkit-scrollbar { width: 12px; height: 12px; }
     </style>
 </head>
 <body>
@@ -400,8 +453,12 @@
                         {{ isDiffModeActive ? 'Session' : 'Total' }}: <strong>{{ formatBigCount(totalExecutions) }}</strong>
                     </span>
                     
-                    <button class="theme-toggle" @click="toggleTheme">
+                    <button class="theme-toggle" @click="toggleTheme" title="Toggle Light/Dark Mode">
                         {{ isDarkMode ? '☀️' : '🌙' }}
+                    </button>
+
+                    <button class="theme-toggle" @click="startTour" title="Quick Feature Tour">
+                        ❔ Help
                     </button>
                 </div>
             </div>

@@ -103,49 +103,28 @@
                     <argLine>${argLine}</argLine>
                 </configuration>
             </plugin>
-                        <plugin>
-                            <groupId>org.jacoco</groupId>
-                            <artifactId>jacoco-maven-plugin</artifactId>
-                            <executions>
-                                <execution>
-                                    <goals>
-                                        <goal>prepare-agent</goal>
-                                    </goals>
-                                </execution>
-                                <execution>
-                                    <id>report</id>
-                                    <phase>post-integration-test</phase>
-                                    <goals>
-                                        <goal>report</goal>
-                                    </goals>
-                                </execution>
-                            </executions>
-                        </plugin>
-                        <!-- Run UI E2E tests after all reports are generated -->
-                                    <plugin>
-                                        <groupId>com.github.eirslett</groupId>
-                                        <artifactId>frontend-maven-plugin</artifactId>
-                                        <version>${frontend-maven-plugin.version}</version>
-                                        <configuration>
-                        
-                                <workingDirectory>../agent/report-ui</workingDirectory>
-                                <installDirectory>../agent/target/node</installDirectory>
-                            </configuration>
-                            <executions>
-                                <execution>
-                                    <id>ui-e2e-tests</id>
-                                    <phase>verify</phase>
-                                    <goals>
-                                        <goal>npm</goal>
-                                    </goals>
-                                    <configuration>
-                                        <arguments>run test:e2e</arguments>
-                                        <skip>${skipTests}</skip>
-                                    </configuration>
-                                </execution>
-                            </executions>
-                        </plugin>
-                    </plugins>
-                </build>
-            </project>
-            
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>${frontend-maven-plugin.version}</version>
+                <configuration>
+                    <workingDirectory>../agent/report-ui</workingDirectory>
+                    <installDirectory>../agent/target/node</installDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>ui-e2e-tests</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>run test:e2e</arguments>
+                            <skip>${skipTests}</skip>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -27,7 +27,10 @@ export default defineConfig({
       output: {
         entryFileNames: 'report-app.js',
         chunkFileNames: '[name].js',
-        assetFileNames: '[name].[ext]',
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name === 'style.css') return 'report-style.css';
+          return '[name].[ext]';
+        },
         inlineDynamicImports: true
       }
     }

@@ -50,11 +50,11 @@ class ExecutionCounterAgentTest {
       ExecutionCounterAgent.main(new String[0]);
 
       // Should fail with missing data
-      ExecutionCounterAgent.main(new String[]{"--output=target/test.html"});
+      ExecutionCounterAgent.main(new String[] {"--output=target/test.html"});
 
       // Should succeed regenerating
       ExecutionCounterAgent.main(
-          new String[]{
+          new String[] {
             "--data=" + dataFile.toAbsolutePath(), "--output=" + reportFile.toAbsolutePath()
           });
 
@@ -131,7 +131,7 @@ class ExecutionCounterAgentTest {
     ClassFileTransformer transformer = agent.getTransformer();
 
     // Providing garbage bytes that ASM can't parse should trigger catch block
-    assertNull(transformer.transform(null, "com/app/Logic", null, null, new byte[]{1, 2, 3}));
+    assertNull(transformer.transform(null, "com/app/Logic", null, null, new byte[] {1, 2, 3}));
   }
 
   @Test

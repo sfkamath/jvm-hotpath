@@ -2,6 +2,8 @@ import { createApp, defineComponent, ref, computed, nextTick, onMounted } from '
 import Prism from 'prismjs';
 import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-java';
+import { driver } from "driver.js";
+import "driver.js/dist/driver.css";
 
 interface FileData {
   path: string;
@@ -71,9 +73,11 @@ const formatBigCount = (count: number) => new Intl.NumberFormat().format(count);
 
 const lastTotals = new Map<string, number>();
 
-// Global State for Diff Mode
-const isDiffModeActive = ref(false);
-const diffBaseline = ref<Map<string, Record<string, number>>>(new Map());
+// Shared State for Diff Mode
+const diffState = {
+  active: ref(false),
+  baseline: ref<Map<string, Record<string, number>>>(new Map())
+};
 
 const ICONS = {
   FOLDER_OPEN: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 4.5V13.5H14.5V6.5H8.5L6.5 4.5H1.5Z" fill="#9AA7B0" stroke="#9AA7B0" stroke-width="1" stroke-linejoin="round"/><path d="M1.5 6.5L14.5 6.5L13.5 13.5L2.5 13.5L1.5 6.5Z" fill="#C0C7CE"/></svg>`,
@@ -265,11 +269,11 @@ const TreeNode = defineComponent({
 
     const displayCount = computed(() => {
       const current = props.node.totalCount || 0;
-      if (!isDiffModeActive.value) {
+      if (!diffState.active.value) {
         return props.node.formattedTotal || formatCount(current);
       }
       
-      const baseline = diffBaseline.value.get(props.node.path);
+      const baseline = diffState.baseline.value.get(props.node.path);
       const baselineTotal = baseline ? baseline["_total"] : 0;
       const diff = Math.max(0, current - baselineTotal);
       return formatCount(diff);
@@ -330,6 +334,32 @@ createApp({
   setup() {
     const rawData = ref(initialPayload.files);
     const showAll = ref(localStorage.getItem('showAllSources') === 'true');
+
+    const toggleDiffMode = () => {
+      const newBaseline = new Map<string, Record<string, number>>();
+      
+      // Capture baseline for every node in the tree (including folders/projects)
+      const traverse = (nodes: any[]) => {
+        nodes.forEach(node => {
+          const counts: Record<string, number> = { ...node.counts };
+          counts["_total"] = node.totalCount || 0;
+          newBaseline.set(node.path, counts);
+          if (node.children) {
+            traverse(node.children);
+          }
+        });
+      };
+      
+      traverse(fileTree.value);
+      diffState.baseline.value = newBaseline;
+      diffState.active.value = true;
+    };
+
+    const stopDiffMode = () => {
+      diffState.active.value = false;
+      diffState.baseline.value = new Map();
+    };
+
     const filteredFiles = computed(() => {
       if (showAll.value) return rawData.value;
       return rawData.value.filter((f) => Object.values(f.counts).some((c) => c > 0));
@@ -341,28 +371,72 @@ createApp({
     const isLive = ref(false);
     const liveError = ref<string | null>(null);
 
-    const toggleDiffMode = () => {
-      // Taking a new baseline acts as a "Lap" - it re-zeros the counts since this moment
-      diffBaseline.value.clear();
-      const traverse = (nodes: TreeNode[]) => {
-        nodes.forEach(node => {
-          const baseline: Record<string, number> = { "_total": node.totalCount };
-          if (!node.children && node.counts) {
-            Object.entries(node.counts).forEach(([line, count]) => {
-              baseline[line] = count;
-            });
+    // Feature Tour
+    const driverObj = driver({
+      showProgress: true,
+      steps: [
+        {
+          element: '.node-count',
+          popover: {
+            title: 'The Hotpath X-Ray',
+            description: 'This is the core of JVM Hotpath: <b>Frequency</b>. The file tree aggregates counts across your entire project, highlighting where the most execution is happening.'
           }
-          diffBaseline.value.set(node.path, baseline);
-          if (node.children) traverse(node.children);
-        });
-      };
-      traverse(fileTree.value);
-      isDiffModeActive.value = true;
-    };
+        },
+        {
+          element: '.cnt',
+          popover: {
+            title: 'Line-Level Intensity',
+            description: 'In the gutter, you see exactly how many times each specific line executed. This is a "Logic X-Ray" that finds algorithmic bottlenecks that sampling profilers often miss.'
+          }
+        },
+        {
+          element: '.sidebar-header',
+          popover: {
+            title: 'Project Navigation',
+            description: 'Navigate your code logic. Use the <b>All files</b> toggle to see your entire project structure, or keep it off to focus only on the code that was actually touched.'
+          }
+        },
+        {
+          element: '.toolbar-center > span',
+          popover: {
+            title: 'Live Updates',
+            description: 'The pulse indicates if the report is receiving live data. Watch these counts increase in real-time as your application runs.'
+          }
+        },
+        {
+          element: '.diff-btn-group',
+          popover: {
+            title: 'Diff Mode',
+            description: 'Click Diff Mode to re-zero counts. This allows you to isolate the execution impact of a specific action, perfect for catching regressions during refactoring.'
+          }
+        }
+      ]
+    });
 
-    const stopDiffMode = () => {
-      isDiffModeActive.value = false;
-      diffBaseline.value.clear();
+    const startTour = () => {
+      // Proactively select a "hot" file if nothing is selected or if the current one is empty
+      const findHotFile = (nodes: TreeNode[]): TreeNode | null => {
+        for (const node of nodes) {
+          if (!node.children && node.totalCount > 0) return node;
+          if (node.children) {
+            const found = findHotFile(node.children);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      if (!selectedFile.value || selectedFile.value.totalCount === 0) {
+        const hotFile = findHotFile(fileTree.value);
+        if (hotFile) {
+          selectFile(hotFile);
+        }
+      }
+      
+      // Give Vue a tick to render the gutter/highlights before starting
+      nextTick(() => {
+        driverObj.drive();
+      });
     };
 
     const sidebarWidth = ref(parseInt(localStorage.getItem('sidebarWidth') || '300'));
@@ -397,9 +471,9 @@ createApp({
         nodes.forEach(node => {
           if (!node.children) { // Only files contribute to heatmap max
             const current = node.totalCount || 0;
-            const baseline = diffBaseline.value.get(node.path);
+            const baseline = diffState.baseline.value.get(node.path);
             const baselineTotal = baseline ? baseline["_total"] : 0;
-            const diff = isDiffModeActive.value ? Math.max(0, current - baselineTotal) : current;
+            const diff = diffState.active.value ? Math.max(0, current - baselineTotal) : current;
             if (diff > max) max = diff;
           } else {
             traverse(node.children);
@@ -413,9 +487,9 @@ createApp({
     const totalExecutions = computed(() => {
       return fileTree.value.reduce((sum, node) => {
         const current = node.totalCount || 0;
-        const baseline = diffBaseline.value.get(node.path);
+        const baseline = diffState.baseline.value.get(node.path);
         const baselineTotal = baseline ? baseline["_total"] : 0;
-        const diff = isDiffModeActive.value ? Math.max(0, current - baselineTotal) : current;
+        const diff = diffState.active.value ? Math.max(0, current - baselineTotal) : current;
         return sum + diff;
       }, 0);
     });
@@ -573,9 +647,9 @@ createApp({
     const getExecutionCount = (lineNum: number) => {
       if (!selectedFile.value) return 0;
       const current = Number(selectedFile.value.counts?.[lineNum.toString()] || 0);
-      if (!isDiffModeActive.value) return current;
+      if (!diffState.active.value) return current;
       
-      const baseline = diffBaseline.value.get(selectedFile.value.path)?.[lineNum.toString()] || 0;
+      const baseline = diffState.baseline.value.get(selectedFile.value.path)?.[lineNum.toString()] || 0;
       return Math.max(0, current - baseline);
     };
 
@@ -605,9 +679,10 @@ createApp({
       isDarkMode,
       isLive,
       liveError,
-      isDiffModeActive,
       toggleDiffMode,
-      stopDiffMode
+      stopDiffMode,
+      isDiffModeActive: diffState.active,
+      startTour
     };
   }
 }).mount('#app');

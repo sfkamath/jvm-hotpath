@@ -8,6 +8,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "driver.js": "^1.4.0",
     "prismjs": "^1.30.0",
     "vue": "^3.5.27"
   },

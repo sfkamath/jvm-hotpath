@@ -9,3 +9,5 @@ release.properties
 *.iml
 .vscode/
 .java-version
+**/playwright-report/
+**/test-results/

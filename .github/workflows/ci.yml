@@ -28,13 +28,12 @@ jobs:
       - name: Install Playwright Browsers
         if: matrix.java >= 17
         run: npx playwright install --with-deps chromium
+        working-directory: agent/report-ui
 
       - name: Build with Maven
         run: |
           if [ "${{ matrix.java }}" == "21" ]; then
-            mvn clean install -Pquality -Pit
-          elif [ "${{ matrix.java }}" -ge "17" ]; then
-            mvn clean install -Pit
+            mvn clean install -Pquality
           else
             mvn clean install
           fi
