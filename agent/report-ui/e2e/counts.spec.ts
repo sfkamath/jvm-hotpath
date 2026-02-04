@@ -20,7 +20,7 @@ for (const report of reports) {
     await page.goto(fileUrl);
     await page.waitForSelector('#app');
 
-    const counts = page.locator('.node-count');
+    const counts = page.getByTestId('node-count');
     await expect(counts.first()).toBeVisible();
 
     const countText = await counts.first().innerText();
@@ -33,13 +33,13 @@ for (const report of reports) {
     await page.waitForSelector('#app');
 
     // Expand all folders
-    const chevrons = page.locator('.chevron:text-is("▸")');
+    const chevrons = page.getByTestId('tree-chevron').filter({ hasText: '▸' });
     while (await chevrons.count() > 0) {
       await chevrons.first().click();
       await page.waitForTimeout(100);
     }
 
-    const hotFiles = page.locator('.tree-node-wrapper:not(.is-folder) .tree-item').filter({ has: page.locator('.node-count') });
+    const hotFiles = page.getByTestId('tree-file').filter({ has: page.getByTestId('node-count') });
     const count = await hotFiles.count();
     
     let foundGutter = false;
@@ -48,7 +48,7 @@ for (const report of reports) {
       await file.click();
       await page.waitForTimeout(300);
       
-      const gutterCounts = page.locator('.gutter .cnt');
+      const gutterCounts = page.getByTestId('gutter-count');
       if (await gutterCounts.count() > 0) {
         foundGutter = true;
         break;

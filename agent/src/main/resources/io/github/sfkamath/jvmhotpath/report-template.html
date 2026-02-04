@@ -54,20 +54,39 @@
         .driver-active .driver-overlay,.driver-active *{pointer-events:none}.driver-active .driver-active-element,.driver-active .driver-active-element *,.driver-popover,.driver-popover *{pointer-events:auto}@keyframes animate-fade-in{0%{opacity:0}to{opacity:1}}.driver-fade .driver-overlay{animation:animate-fade-in .2s ease-in-out}.driver-fade .driver-popover{animation:animate-fade-in .2s}.driver-popover{all:unset;box-sizing:border-box;color:#2d2d2d;margin:0;padding:15px;border-radius:5px;min-width:250px;max-width:300px;box-shadow:0 1px 10px #0006;z-index:1000000000;position:fixed;top:0;right:0;background-color:#fff}.driver-popover *{font-family:Helvetica Neue,Inter,ui-sans-serif,"Apple Color Emoji",Helvetica,Arial,sans-serif}.driver-popover-title{font:19px/normal sans-serif;font-weight:700;display:block;position:relative;line-height:1.5;zoom:1;margin:0}.driver-popover-close-btn{all:unset;position:absolute;top:0;right:0;width:32px;height:28px;cursor:pointer;font-size:18px;font-weight:500;color:#d2d2d2;z-index:1;text-align:center;transition:color;transition-duration:.2s}.driver-popover-close-btn:hover,.driver-popover-close-btn:focus{color:#2d2d2d}.driver-popover-title[style*=block]+.driver-popover-description{margin-top:5px}.driver-popover-description{margin-bottom:0;font:14px/normal sans-serif;line-height:1.5;font-weight:400;zoom:1}.driver-popover-footer{margin-top:15px;text-align:right;zoom:1;display:flex;align-items:center;justify-content:space-between}.driver-popover-progress-text{font-size:13px;font-weight:400;color:#727272;zoom:1}.driver-popover-footer button{all:unset;display:inline-block;box-sizing:border-box;padding:3px 7px;text-decoration:none;text-shadow:1px 1px 0 #fff;background-color:#fff;color:#2d2d2d;font:12px/normal sans-serif;cursor:pointer;outline:0;zoom:1;line-height:1.3;border:1px solid #ccc;border-radius:3px}.driver-popover-footer .driver-popover-btn-disabled{opacity:.5;pointer-events:none}:not(body):has(>.driver-active-element){overflow:hidden!important}.driver-no-interaction,.driver-no-interaction *{pointer-events:none!important}.driver-popover-footer button:hover,.driver-popover-footer button:focus{background-color:#f7f7f7}.driver-popover-navigation-btns{display:flex;flex-grow:1;justify-content:flex-end}.driver-popover-navigation-btns button+button{margin-left:4px}.driver-popover-arrow{content:"";position:absolute;border:5px solid #fff}.driver-popover-arrow-side-over{display:none}.driver-popover-arrow-side-left{left:100%;border-right-color:transparent;border-bottom-color:transparent;border-top-color:transparent}.driver-popover-arrow-side-right{right:100%;border-left-color:transparent;border-bottom-color:transparent;border-top-color:transparent}.driver-popover-arrow-side-top{top:100%;border-right-color:transparent;border-bottom-color:transparent;border-left-color:transparent}.driver-popover-arrow-side-bottom{bottom:100%;border-left-color:transparent;border-top-color:transparent;border-right-color:transparent}.driver-popover-arrow-side-center{display:none}.driver-popover-arrow-side-left.driver-popover-arrow-align-start,.driver-popover-arrow-side-right.driver-popover-arrow-align-start{top:15px}.driver-popover-arrow-side-top.driver-popover-arrow-align-start,.driver-popover-arrow-side-bottom.driver-popover-arrow-align-start{left:15px}.driver-popover-arrow-align-end.driver-popover-arrow-side-left,.driver-popover-arrow-align-end.driver-popover-arrow-side-right{bottom:15px}.driver-popover-arrow-side-top.driver-popover-arrow-align-end,.driver-popover-arrow-side-bottom.driver-popover-arrow-align-end{right:15px}.driver-popover-arrow-side-left.driver-popover-arrow-align-center,.driver-popover-arrow-side-right.driver-popover-arrow-align-center{top:50%;margin-top:-5px}.driver-popover-arrow-side-top.driver-popover-arrow-align-center,.driver-popover-arrow-side-bottom.driver-popover-arrow-align-center{left:50%;margin-left:-5px}.driver-popover-arrow-none{display:none}
 
         :root {
+            /* Theme Tokens (RGB) */
+            --bg: 15 23 42;
+            --sidebar: 30 41 59;
+            --text: 226 232 240;
+            --border: 51 65 85;
+            --accent: 59 130 246;
+            --hover: 51 65 85;
+            --code-bg: 30 30 30;
+            --gutter-bg: 30 30 30;
+            --gutter-border: 51 65 85;
+            --gutter-text: 100 116 139;
+            --selection: 45 55 72;
+            --stripe: 255 255 255;
+            --flash: 59 130 246;
+
+            --status-success: 74 222 128;
+            --status-warning: 245 158 11;
+            --status-danger: 239 68 68;
+
             /* Theme Colors */
-            --bg-color: #0f172a;
-            --sidebar-bg: #1e293b;
-            --text-color: #e2e8f0;
-            --border-color: #334155;
-            --accent-color: #3b82f6;
-            --hover-color: #334155;
-            --code-bg: #1e1e1e;
-            --gutter-bg: #1e1e1e;
-            --gutter-border: #334155;
-            --gutter-text: #64748b;
-            --selection-bg: #2d3748;
-            --stripe-color: rgba(255, 255, 255, 0.03);
-            --flash-color: rgba(59, 130, 246, 0.3);
+            --bg-color: rgb(var(--bg));
+            --sidebar-bg: rgb(var(--sidebar));
+            --text-color: rgb(var(--text));
+            --border-color: rgb(var(--border));
+            --accent-color: rgb(var(--accent));
+            --hover-color: rgb(var(--hover));
+            --code-bg: rgb(var(--code-bg));
+            --gutter-bg: rgb(var(--gutter-bg));
+            --gutter-border: rgb(var(--gutter-border));
+            --gutter-text: rgb(var(--gutter-text));
+            --selection-bg: rgb(var(--selection));
+            --stripe-color: rgb(var(--stripe) / 0.03);
+            --flash-color: rgb(var(--flash) / 0.3);
             
             /* Fonts */
             --ui-font: 'Inter', system-ui, -apple-system, sans-serif;
@@ -75,19 +94,33 @@
         }
 
         body.light-mode {
-            --bg-color: #f8fafc;
-            --sidebar-bg: #ffffff;
-            --text-color: #334155;
-            --border-color: #e2e8f0;
-            --accent-color: #2563eb;
-            --hover-color: #f1f5f9;
-            --code-bg: #ffffff;
-            --gutter-bg: #f8fafc;
-            --gutter-border: #e2e8f0;
-            --gutter-text: #475569; /* Darkened from #94a3b8 */
-            --selection-bg: #e2e8f0;
-            --stripe-color: rgba(0, 0, 0, 0.03);
-            --flash-color: rgba(37, 99, 235, 0.2);
+            --bg: 248 250 252;
+            --sidebar: 255 255 255;
+            --text: 51 65 85;
+            --border: 226 232 240;
+            --accent: 37 99 235;
+            --hover: 241 245 249;
+            --code-bg: 255 255 255;
+            --gutter-bg: 248 250 252;
+            --gutter-border: 226 232 240;
+            --gutter-text: 71 85 105; /* Darkened from #94a3b8 */
+            --selection: 226 232 240;
+            --stripe: 0 0 0;
+            --flash: 37 99 235;
+
+            --bg-color: rgb(var(--bg));
+            --sidebar-bg: rgb(var(--sidebar));
+            --text-color: rgb(var(--text));
+            --border-color: rgb(var(--border));
+            --accent-color: rgb(var(--accent));
+            --hover-color: rgb(var(--hover));
+            --code-bg: rgb(var(--code-bg));
+            --gutter-bg: rgb(var(--gutter-bg));
+            --gutter-border: rgb(var(--gutter-border));
+            --gutter-text: rgb(var(--gutter-text));
+            --selection-bg: rgb(var(--selection));
+            --stripe-color: rgb(var(--stripe) / 0.03);
+            --flash-color: rgb(var(--flash) / 0.2);
         }
 
         * { box-sizing: border-box; }
@@ -156,7 +189,7 @@
             justify-content: center;
         }
         .diff-btn-group:hover { background: var(--hover-color); }
-        .diff-btn-group.active { border-color: #f59e0b; background: rgba(245, 158, 11, 0.05); }
+        .diff-btn-group.active { border-color: rgb(var(--status-warning)); background: rgb(var(--status-warning) / 0.05); }
         
         .diff-btn-main {
             background: none; border: none; color: var(--text-color); 
@@ -170,7 +203,7 @@
             padding: 4px 10px; cursor: pointer; font-size: 12px;
             transition: color 0.2s;
         }
-        .diff-btn-clear:hover { color: #ef4444; }
+        .diff-btn-clear:hover { color: rgb(var(--status-danger)); }
 
         .theme-toggle { background: none; border: 1px solid var(--border-color); color: var(--text-color); padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s; }
         .theme-toggle:hover { background: var(--hover-color); }
@@ -334,11 +367,11 @@
             white-space: nowrap; 
             min-width: max-content;
             height: 22px;
-            transition: background 0.2s;
+            transition: background var(--flash-duration, 2400ms) ease;
         }
         .tree-item:hover { background: var(--hover-color); }
         .tree-item.active { background: var(--accent-color); color: white; }
-        .tree-item.flash { background: var(--flash-color); transition: background 0s; }
+        .tree-item.flash { background: var(--flash-color); }
         
         .tree-item .icon { 
             margin-right: 6px; 
@@ -396,20 +429,30 @@
                     <span>Project Files</span>
                     <span class="badge">{{ totalFiles }}</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: normal; color: var(--gutter-text);">
-                    <span>All files</span>
-                    <label class="switch" title="Show all source files (including 0 hotpath)">
-                        <input type="checkbox" :checked="showAll" @change="toggleShowAll">
-                        <span class="slider"></span>
-                    </label>
+                <div style="display: flex; align-items: center; gap: 12px; font-size: 11px; font-weight: normal; color: var(--gutter-text);">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span>All files</span>
+                        <label class="switch" title="Show all source files (including 0 hotpath)">
+                            <input type="checkbox" :checked="showAll" @change="toggleShowAll">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span>Aggregates</span>
+                        <label class="switch" title="Show folder aggregates in the tree">
+                            <input type="checkbox" :checked="showAggregates" @change="toggleShowAggregates" data-testid="aggregates-toggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                 </div>
             </div>
-            <div class="file-tree" ref="treeContainer">
+            <div class="file-tree" ref="treeContainer" data-testid="file-tree">
                 <tree-node 
                     v-for="node in fileTree" 
                     :key="node.path"
                     :node="node" 
                     :selected-path="selectedFile?.path"
+                    :show-aggregates="showAggregates"
                     @select="selectFile">
                 </tree-node>
             </div>
@@ -426,18 +469,18 @@
                 </div>
                 
                 <div class="toolbar-center">
-                    <div class="diff-btn-group" :class="{ active: isDiffModeActive }">
-                        <button v-if="isDiffModeActive" class="diff-btn-clear" @click="stopDiffMode" title="Exit Diff Mode">✕</button>
-                        <button class="diff-btn-main" @click="toggleDiffMode" :title="isDiffModeActive ? 'Reset baseline (Re-zero)' : 'Enable Diff Mode'">
-                            <span :style="{ color: isDiffModeActive ? '#4ade80' : 'var(--gutter-text)' }">
+                    <div class="diff-btn-group" :class="{ active: isDiffModeActive }" data-testid="diff-mode-group">
+                        <button v-if="isDiffModeActive" class="diff-btn-clear" @click="stopDiffMode" title="Exit Diff Mode" data-testid="diff-mode-clear">✕</button>
+                        <button class="diff-btn-main" @click="toggleDiffMode" :title="isDiffModeActive ? 'Reset baseline (Re-zero)' : 'Enable Diff Mode'" data-testid="diff-mode-toggle">
+                            <span :style="{ color: isDiffModeActive ? 'rgb(var(--status-success))' : 'var(--gutter-text)' }">
                                 {{ isDiffModeActive ? '●' : '○' }}
                             </span>
                             Diff Mode
                         </button>
                     </div>
 
-                    <span :title="liveError" style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: help;">
-                        <span :style="{ color: isLive ? '#4ade80' : (liveError ? '#ef4444' : '#94a3b8') }">●</span>
+                    <span :title="liveError" style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: help;" data-testid="live-status">
+                        <span :style="{ color: isLive ? 'rgb(var(--status-success))' : (liveError ? 'rgb(var(--status-danger))' : 'var(--gutter-text)') }">●</span>
                         <span style="color: var(--gutter-text);">{{ isLive ? 'Live' : 'Offline' }}</span>
                     </span>
                 </div>
@@ -453,22 +496,23 @@
                         {{ isDiffModeActive ? 'Session' : 'Total' }}: <strong>{{ formatBigCount(totalExecutions) }}</strong>
                     </span>
                     
-                    <button class="theme-toggle" @click="toggleTheme" title="Toggle Light/Dark Mode">
+                    <button class="theme-toggle" @click="toggleTheme" title="Toggle Light/Dark Mode" data-testid="theme-toggle">
                         {{ isDarkMode ? '☀️' : '🌙' }}
                     </button>
 
-                    <button class="theme-toggle" @click="startTour" title="Quick Feature Tour">
+                    <button class="theme-toggle" @click="startTour" title="Quick Feature Tour" data-testid="tour-toggle">
                         ❔ Help
                     </button>
                 </div>
             </div>
 
             <div v-if="selectedFile" class="code-scroller">
-                <div class="gutter use-code-font">
+                <div class="gutter use-code-font" data-testid="gutter">
                     <div v-for="(line, index) in selectedFile.lines" :key="index" class="line-row">
                         <span class="ln">{{ index + 1 }}</span>
                         <span v-if="getExecutionCount(index + 1) > 0" 
                               class="cnt" 
+                              data-testid="gutter-count"
                               :style="{ backgroundColor: getHeatmapColor(getExecutionCount(index + 1)) }"
                               :title="getExecutionCount(index + 1) + ' executions'">
                             {{ formatCount(getExecutionCount(index + 1)) }}

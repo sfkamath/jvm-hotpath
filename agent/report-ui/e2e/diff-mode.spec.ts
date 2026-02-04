@@ -16,15 +16,15 @@ for (const report of reports) {
     await page.goto(fileUrl);
     await page.waitForSelector('#app');
 
-    const countBadge = page.locator('.node-count').first();
+    const countBadge = page.getByTestId('node-count').first();
     await expect(countBadge).toBeVisible();
     const initialText = await countBadge.innerText();
 
     // Click Diff Mode button (Activation)
-    await page.click('.diff-btn-main', { timeout: 10000 });
+    await page.getByTestId('diff-mode-toggle').click({ timeout: 10000 });
     
     // Check for active state on the group
-    await expect(page.locator('.diff-btn-group.active')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="diff-mode-group"].active')).toBeVisible({ timeout: 10000 });
     
     // In our static test report, hits - baseline hits = 0
     await expect(countBadge).toHaveText('0', { timeout: 10000 });
@@ -32,17 +32,17 @@ for (const report of reports) {
     // Wait a moment and click again (Reset/Re-zero)
     await page.waitForTimeout(500);
     console.log("Triggering Reset (Lap)...");
-    await page.click('.diff-btn-main', { timeout: 10000 });
+    await page.getByTestId('diff-mode-toggle').click({ timeout: 10000 });
     
     // Should still be active and still 0 (since it just re-zeroed)
-    await expect(page.locator('.diff-btn-group.active')).toBeVisible();
+    await expect(page.locator('[data-testid="diff-mode-group"].active')).toBeVisible();
     await expect(countBadge).toHaveText('0');
 
     // Exit Diff Mode using the 'X' button
-    await page.click('.diff-btn-clear');
+    await page.getByTestId('diff-mode-clear').click();
     
     // Counts should be back to absolute
-    await expect(page.locator('.diff-btn-group.active')).not.toBeVisible();
+    await expect(page.locator('[data-testid="diff-mode-group"].active')).not.toBeVisible();
     await expect(countBadge).toHaveText(initialText);
   });
 

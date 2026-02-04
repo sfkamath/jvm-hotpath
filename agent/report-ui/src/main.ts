@@ -1,4 +1,4 @@
-import { createApp, defineComponent, ref, computed, nextTick, onMounted } from 'vue';
+import { createApp, defineComponent, ref, computed, nextTick, onMounted, onUnmounted, reactive } from 'vue';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-java';
@@ -59,6 +59,7 @@ const jsonFile = window.REPORT_JSON || 'execution-report.json';
 const jsonpFile = window.REPORT_JSONP || 'execution-report.js';
 const POLL_INTERVAL = 2000;
 const OFFLINE_TIMEOUT = Math.max(6000, POLL_INTERVAL * 3);
+const FLASH_FADE_MS = Math.min(5000, Math.max(2000, POLL_INTERVAL - 500));
 const pageLoadedAt = Date.now();
 let lastUpdate =
   Math.max(initialPayload.generatedAt, window.REPORT_GENERATED_AT || 0, pageLoadedAt);
@@ -112,7 +113,7 @@ const buildTree = (files: FileData[]): TreeNode[] => {
       currentPath += (currentPath ? '/' : '') + segment;
       let node = currentLevel.find((n) => n.name === segment && n.depth === index);
       if (!node) {
-        node = {
+        node = reactive({
           name: segment,
           path: currentPath,
           depth: index,
@@ -122,18 +123,13 @@ const buildTree = (files: FileData[]): TreeNode[] => {
           totalCount: 0,
           formattedTotal: '',
           flash: false
-        };
+        }) as TreeNode;
         currentLevel.push(node);
       }
 
       node.totalCount += fileSum;
       node.formattedTotal = formatCount(node.totalCount);
       
-      if (hasNewHits && oldFileTotal > 0) {
-        node.flash = true;
-        setTimeout(() => (node.flash = false), 1000);
-      }
-
       if (index === segments.length - 1) {
         node.children = null;
         node.filePath = file.path;
@@ -141,6 +137,10 @@ const buildTree = (files: FileData[]): TreeNode[] => {
         node.lines = file.content.split(/\r?\n/);
         node.counts = file.counts;
         lastTotals.set(key, fileSum);
+        if (hasNewHits && oldFileTotal > 0) {
+          node.flash = true;
+          setTimeout(() => (node.flash = false), FLASH_FADE_MS);
+        }
       } else if (node.children) {
         node.project = project;
         currentLevel = node.children;
@@ -176,28 +176,40 @@ const updateTreeData = (nodes: TreeNode[], newFiles: FileData[]) => {
       return [`${project}::${f.path}`, f];
     })
   );
-  const traverse = (nodeList: TreeNode[]) => {
+
+  const traverse = (nodeList: TreeNode[]): number => {
+    let total = 0;
     for (const node of nodeList) {
+      const oldTotal = node.totalCount || 0;
       if (node.children) {
-        traverse(node.children);
+        // Folder: aggregate from children
+        const folderSum = traverse(node.children);
+        node.totalCount = folderSum;
+        node.formattedTotal = formatCount(folderSum);
+        total += folderSum;
       } else {
+        // Leaf (File): update from incoming data
         const project = node.project || 'unknown';
         const lookupPath = node.filePath || node.path;
         const key = lookupPath ? `${project}::${lookupPath}` : undefined;
         const newData = key ? fileMap.get(key) : undefined;
+        
         if (newData) {
-          const oldTotal = node.totalCount || 0;
-          node.counts = newData.counts;
           const newSum = Object.values(newData.counts).reduce((a, b) => a + b, 0);
+          
+          node.counts = newData.counts;
           node.totalCount = newSum;
           node.formattedTotal = formatCount(newSum);
-          if (newSum > oldTotal) {
+          
+          if (newSum > oldTotal && oldTotal > 0) {
             node.flash = true;
-            setTimeout(() => (node.flash = false), 1000);
+            setTimeout(() => (node.flash = false), FLASH_FADE_MS);
           }
         }
+        total += node.totalCount;
       }
     }
+    return total;
   };
   traverse(nodes);
 };
@@ -219,8 +231,17 @@ const setPrismTheme = (dark: boolean) => {
     : 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-coy.min.css';
 };
 
+const getStoredThemeSafe = () => {
+  try {
+    return localStorage.getItem('theme');
+  } catch (e) {
+    return null;
+  }
+};
+
 const initTheme = () => {
-  const saved = localStorage.getItem('theme');
+  document.documentElement.style.setProperty('--flash-duration', `${FLASH_FADE_MS}ms`);
+  const saved = getStoredThemeSafe();
   const body = document.body;
   if (saved === 'light') {
     body.classList.add('light-mode');
@@ -231,17 +252,30 @@ const initTheme = () => {
   }
 };
 
-const collapsedFolders = ref<Set<string>>(new Set(JSON.parse(localStorage.getItem('collapsedFolders') || '[]')));
+const getCollapsedFolders = () => {
+  try {
+    return new Set<string>(JSON.parse(localStorage.getItem('collapsedFolders') || '[]'));
+  } catch (e) {
+    return new Set<string>();
+  }
+};
+
+const collapsedFolders = ref<Set<string>>(getCollapsedFolders());
 
 const saveCollapsedFolders = () => {
-  localStorage.setItem('collapsedFolders', JSON.stringify(Array.from(collapsedFolders.value)));
+  try {
+    localStorage.setItem('collapsedFolders', JSON.stringify(Array.from(collapsedFolders.value)));
+  } catch (e) {
+    // Ignore storage errors
+  }
 };
 
 const TreeNode = defineComponent({
   name: 'TreeNode',
   props: {
     node: { type: Object as () => TreeNode, required: true },
-    selectedPath: { type: String, required: true }
+    selectedPath: { type: String, required: true },
+    showAggregates: { type: Boolean, required: true }
   },
   emits: ['select'],
   setup(props, { emit }) {
@@ -299,16 +333,20 @@ const TreeNode = defineComponent({
         class="tree-item"
         :class="{ active: node.path === selectedPath, flash: node.flash }"
         @click="toggle"
+        :data-testid="isFolder ? 'tree-folder' : 'tree-file'"
         :style="{ paddingLeft: (node.depth * 6 + 4) + 'px' }">
         
-        <span v-if="isFolder" class="chevron" @click="handleChevronClick">
+        <span v-if="isFolder" class="chevron" @click="handleChevronClick" data-testid="tree-chevron">
           {{ isOpen ? '▾' : '▸' }}
         </span>
         <span v-else class="chevron-spacer"></span>
 
         <span class="icon" v-html="icon"></span>
-        <span class="node-name">{{ node.name }}</span>
-        <span v-if="node.totalCount > 0" class="node-count">
+        <span class="node-name" data-testid="node-name">{{ node.name }}</span>
+        <span
+          v-if="node.totalCount > 0 && (!isFolder || showAggregates)"
+          class="node-count"
+          data-testid="node-count">
           {{ displayCount }}
         </span>
       </div>
@@ -318,6 +356,7 @@ const TreeNode = defineComponent({
           :key="child.path"
           :node="child"
           :selected-path="selectedPath"
+          :show-aggregates="showAggregates"
           @select="$emit('select', $event)">
         </tree-node>
       </div>
@@ -333,7 +372,23 @@ createApp({
   template: appTemplate,
   setup() {
     const rawData = ref(initialPayload.files);
-    const showAll = ref(localStorage.getItem('showAllSources') === 'true');
+    const getShowAll = () => {
+      try {
+        return localStorage.getItem('showAllSources') === 'true';
+      } catch (e) {
+        return false;
+      }
+    };
+    const showAll = ref(getShowAll());
+    const getShowAggregates = () => {
+      try {
+        const value = localStorage.getItem('showAggregates');
+        return value === null ? true : value === 'true';
+      } catch (e) {
+        return true;
+      }
+    };
+    const showAggregates = ref(getShowAggregates());
 
     const toggleDiffMode = () => {
       const newBaseline = new Map<string, Record<string, number>>();
@@ -367,51 +422,18 @@ createApp({
     const fileTree = computed(() => buildTree(filteredFiles.value));
     const selectedFile = ref<TreeNode | null>(null);
     const highlightedCode = ref('');
-    const isDarkMode = ref(true);
+    const getStoredTheme = () => {
+      try {
+        return localStorage.getItem('theme') || 'dark';
+      } catch (e) {
+        return 'dark';
+      }
+    };
+
+    const initialTheme = getStoredTheme();
+    const isDarkMode = ref(initialTheme === 'dark');
     const isLive = ref(false);
     const liveError = ref<string | null>(null);
-
-    // Feature Tour
-    const driverObj = driver({
-      showProgress: true,
-      steps: [
-        {
-          element: '.node-count',
-          popover: {
-            title: 'The Hotpath X-Ray',
-            description: 'This is the core of JVM Hotpath: <b>Frequency</b>. The file tree aggregates counts across your entire project, highlighting where the most execution is happening.'
-          }
-        },
-        {
-          element: '.cnt',
-          popover: {
-            title: 'Line-Level Intensity',
-            description: 'In the gutter, you see exactly how many times each specific line executed. This is a "Logic X-Ray" that finds algorithmic bottlenecks that sampling profilers often miss.'
-          }
-        },
-        {
-          element: '.sidebar-header',
-          popover: {
-            title: 'Project Navigation',
-            description: 'Navigate your code logic. Use the <b>All files</b> toggle to see your entire project structure, or keep it off to focus only on the code that was actually touched.'
-          }
-        },
-        {
-          element: '.toolbar-center > span',
-          popover: {
-            title: 'Live Updates',
-            description: 'The pulse indicates if the report is receiving live data. Watch these counts increase in real-time as your application runs.'
-          }
-        },
-        {
-          element: '.diff-btn-group',
-          popover: {
-            title: 'Diff Mode',
-            description: 'Click Diff Mode to re-zero counts. This allows you to isolate the execution impact of a specific action, perfect for catching regressions during refactoring.'
-          }
-        }
-      ]
-    });
 
     const startTour = () => {
       // Proactively select a "hot" file if nothing is selected or if the current one is empty
@@ -432,14 +454,74 @@ createApp({
           selectFile(hotFile);
         }
       }
-      
+
       // Give Vue a tick to render the gutter/highlights before starting
       nextTick(() => {
+        const pickRandom = <T,>(items: T[]) =>
+          items[Math.floor(Math.random() * items.length)];
+        const pickCountElement = (selector: string) => {
+          const elements = Array.from(document.querySelectorAll(selector)).filter(
+            (el) => (el.textContent || '').trim().length > 0
+          );
+          return elements.length ? pickRandom(elements) : null;
+        };
+
+        const treeCount = pickCountElement('.node-count');
+        const gutterCount = pickCountElement('[data-testid="gutter-count"]');
+
+        const driverObj = driver({
+          showProgress: true,
+          steps: [
+            {
+              element: treeCount || '.sidebar-header',
+              popover: {
+                title: 'The Hotpath X-Ray',
+                description: 'This is the core of JVM Hotpath: <b>Frequency</b>. The file tree aggregates counts across your entire project, highlighting where the most execution is happening.'
+              }
+            },
+            {
+              element: gutterCount || '.gutter',
+              popover: {
+                title: 'Line-Level Intensity',
+                description: 'In the gutter, you see exactly how many times each specific line executed. This is a "Logic X-Ray" that finds algorithmic bottlenecks that sampling profilers often miss.'
+              }
+            },
+            {
+              element: '.sidebar-header',
+              popover: {
+                title: 'Project Navigation',
+                description: 'Navigate your code logic. Use the <b>All files</b> toggle to see your entire project structure, or keep it off to focus only on the code that was actually touched.'
+              }
+            },
+            {
+              element: '.toolbar-center > span',
+              popover: {
+                title: 'Live Updates',
+                description: 'The pulse indicates if the report is receiving live data. Watch these counts increase in real-time as your application runs.'
+              }
+            },
+            {
+              element: '.diff-btn-group',
+              popover: {
+                title: 'Diff Mode',
+                description: 'Click Diff Mode to re-zero counts. This allows you to isolate the execution impact of a specific action, perfect for catching regressions during refactoring.'
+              }
+            }
+          ]
+        });
+
         driverObj.drive();
       });
     };
 
-    const sidebarWidth = ref(parseInt(localStorage.getItem('sidebarWidth') || '300'));
+    const getSidebarWidth = () => {
+      try {
+        return parseInt(localStorage.getItem('sidebarWidth') || '300');
+      } catch (e) {
+        return 300;
+      }
+    };
+    const sidebarWidth = ref(getSidebarWidth());
     const isResizing = ref(false);
     const treeContainer = ref<HTMLElement | null>(null);
 
@@ -499,13 +581,30 @@ createApp({
     const toggleTheme = () => {
       isDarkMode.value = !isDarkMode.value;
       document.body.classList.toggle('light-mode', !isDarkMode.value);
-      localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light');
+      try {
+        localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light');
+      } catch (e) {
+        // Ignore storage errors
+      }
       setPrismTheme(isDarkMode.value);
     };
 
     const toggleShowAll = () => {
       showAll.value = !showAll.value;
-      localStorage.setItem('showAllSources', showAll.value.toString());
+      try {
+        localStorage.setItem('showAllSources', showAll.value.toString());
+      } catch (e) {
+        // Ignore storage errors
+      }
+    };
+
+    const toggleShowAggregates = () => {
+      showAggregates.value = !showAggregates.value;
+      try {
+        localStorage.setItem('showAggregates', showAggregates.value.toString());
+      } catch (e) {
+        // Ignore storage errors
+      }
     };
 
     const selectFile = (node: TreeNode) => {
@@ -545,8 +644,10 @@ createApp({
       if (!newData) return;
       const payload = normalizePayload(newData as ReportPayload);
       const incomingAt = generatedAt || payload.generatedAt || 0;
-      if (incomingAt && incomingAt <= lastUpdate) return;
-      if (!incomingAt && lastUpdate > 0) return;
+      
+      // Allow update if it's the first real data, or if it's newer
+      const isInitial = lastUpdate === pageLoadedAt || lastUpdate === 0;
+      if (!isInitial && incomingAt > 0 && incomingAt <= lastUpdate) return;
       
       const scrollPos = treeContainer.value?.scrollTop || 0;
       rawData.value = payload.files;
@@ -555,6 +656,13 @@ createApp({
       lastUpdate = incomingAt || Date.now();
 
       nextTick(() => {
+        if (selectedFile.value?.path) {
+          const refreshed = findNodeByPath(selectedFile.value.path, fileTree.value);
+          if (refreshed && refreshed !== selectedFile.value) {
+            selectedFile.value = refreshed;
+            highlightCode();
+          }
+        }
         if (treeContainer.value) {
           treeContainer.value.scrollTop = scrollPos;
         }
@@ -621,25 +729,31 @@ createApp({
       }
     };
 
-    setInterval(pollData, POLL_INTERVAL);
-    setInterval(updateLiveStatus, 1000);
+    const pollInterval = setInterval(pollData, POLL_INTERVAL);
+    const statusInterval = setInterval(updateLiveStatus, 1000);
     updateLiveStatus();
+
+    onUnmounted(() => {
+      clearInterval(pollInterval);
+      clearInterval(statusInterval);
+    });
+
+    const findNodeByPath = (path: string, nodes: TreeNode[]): TreeNode | null => {
+      for (const node of nodes) {
+        if (node.path === path) return node;
+        if (node.children) {
+          const found = findNodeByPath(path, node.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
 
     onMounted(() => {
       const hash = window.location.hash.substring(1);
       if (hash) {
         const path = decodeURIComponent(hash);
-        const findNode = (nodes: TreeNode[]): TreeNode | null => {
-          for (const node of nodes) {
-            if (node.path === path) return node;
-            if (node.children) {
-              const found = findNode(node.children);
-              if (found) return found;
-            }
-          }
-          return null;
-        };
-        const target = findNode(fileTree.value);
+        const target = findNodeByPath(path, fileTree.value);
         if (target) selectFile(target);
       }
     });
@@ -662,6 +776,8 @@ createApp({
       selectedFile,
       showAll,
       toggleShowAll,
+      showAggregates,
+      toggleShowAggregates,
       sidebarWidth,
       isResizing,
       startResizing,
