@@ -9,5 +9,6 @@ release.properties
 *.iml
 .vscode/
 .java-version
+.flattened-pom.xml
 **/playwright-report/
 **/test-results/

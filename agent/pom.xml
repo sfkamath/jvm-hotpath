@@ -8,7 +8,7 @@
     <parent>
         <groupId>io.github.sfkamath</groupId>
         <artifactId>jvm-hotpath-parent</artifactId>
-        <version>0.1.0</version>
+        <version>${revision}</version>
     </parent>
 
     <artifactId>jvm-hotpath-agent</artifactId>

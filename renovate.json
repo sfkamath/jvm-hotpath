@@ -1,0 +1,46 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "org.junit.jupiter:junit-jupiter-engine",
+        "org.junit.jupiter:junit-jupiter-params",
+        "org.junit.jupiter:junit-jupiter-api",
+        "org.junit.platform:junit-platform-launcher"
+      ],
+      "allowedVersions": "< 6.0.0"
+    },
+    {
+      "matchPackageNames": [
+        "com.github.eirslett:frontend-maven-plugin"
+      ],
+      "allowedVersions": "< 2.0.0"
+    },
+    {
+      "matchPackageNames": [
+        "org.springframework.boot:spring-boot-starter-test"
+      ],
+      "allowedVersions": "< 4.0.0"
+    },
+    {
+      "matchPackageNames": [
+        "jakarta.annotation:jakarta.annotation-api"
+      ],
+      "allowedVersions": "< 3.0.0"
+    },
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch",
+      "matchPackageNames": [
+        "*"
+      ]
+    }
+  ]
+}

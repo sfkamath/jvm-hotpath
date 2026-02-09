@@ -8,7 +8,7 @@
     <parent>
         <groupId>io.github.sfkamath</groupId>
         <artifactId>jvm-hotpath-parent</artifactId>
-        <version>0.1.0</version>
+        <version>${revision}</version>
     </parent>
 
     <artifactId>jvm-hotpath-integration-tests-micronaut</artifactId>
@@ -23,7 +23,7 @@
         <dependency>
             <groupId>io.github.sfkamath</groupId>
             <artifactId>jvm-hotpath-agent</artifactId>
-            <version>0.1.0</version>
+            <version>${revision}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -74,7 +74,7 @@
             <plugin>
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
-                <version>0.1.0</version>
+                <version>${revision}</version>
                 <executions>
                     <execution>
                         <goals>

@@ -106,7 +106,7 @@ To build the agent JAR (shaded with all dependencies):
 mvn clean package -DskipTests
 ```
 
-The resulting JAR will be at `target/jvm-hotpath-agent-0.1.0.jar`.
+The resulting JAR will be at `target/jvm-hotpath-agent-0.2.0.jar`.
 
 > **Frontend build:** The report UI lives in `report-ui/` and is bundled via Vite. `mvn clean package` runs `frontend-maven-plugin` to execute `npm install`/`npm run build` inside that folder before packaging, producing a browser-safe `report-app.js` (IIFE bundle). When iterating on the UI you can run `npm install && npm run build` manually from `report-ui/` to refresh the bundled asset.
 
@@ -123,7 +123,7 @@ Add this to your `pom.xml`:
     <groupId>io.github.sfkamath</groupId>
     <artifactId>jvm-hotpath-maven-plugin</artifactId>
     <!-- Use the latest version from the Maven Central badge at the top of this file -->
-    <version>0.1.1</version>
+    <version>0.2.0</version>
     <executions>
         <execution>
             <goals>
@@ -161,7 +161,7 @@ Add this to your `pom.xml`:
     <groupId>io.github.sfkamath</groupId>
     <artifactId>jvm-hotpath-maven-plugin</artifactId>
     <!-- Use the latest version from the Maven Central badge at the top of this file -->
-    <version>0.1.1</version>
+    <version>0.2.0</version>
     <executions>
         <execution>
             <goals>
@@ -229,7 +229,7 @@ Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
                 <!-- Use the latest version from the Maven Central badge at the top of this file -->
-                <version>0.1.1</version>
+                <version>0.2.0</version>
                 <executions>
                     <execution>
                         <goals><goal>prepare-agent</goal></goals>
@@ -303,7 +303,7 @@ If you prefer not to use the plugin, you can attach the agent manually.
 ```bash
 mvn clean package -DskipTests
 ```
-The JAR will be located at `agent/target/jvm-hotpath-agent-0.1.0.jar`.
+The JAR will be located at `agent/target/jvm-hotpath-agent-0.2.0.jar`.
 
 **Run with Agent:**
 
