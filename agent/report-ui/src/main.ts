@@ -436,6 +436,75 @@ createApp({
     const liveError = ref<string | null>(null);
 
     const startTour = () => {
+      const performTour = () => {
+        // Give Vue and Prism a moment to settle the DOM
+        nextTick(() => {
+          setTimeout(() => {
+            const pickRandom = <T,>(items: T[]) =>
+              items[Math.floor(Math.random() * items.length)];
+            const pickCountElement = (selector: string) => {
+              const elements = Array.from(document.querySelectorAll(selector)).filter(
+                (el) => (el.textContent || '').trim().length > 0
+              );
+              return elements.length ? pickRandom(elements) : null;
+            };
+
+            const treeCount = pickCountElement('.node-count');
+            const gutterCount = pickCountElement('[data-testid="gutter-count"]');
+
+            const driverObj = driver({
+              showProgress: true,
+              steps: [
+                {
+                  element: treeCount || '.sidebar-header',
+                  popover: {
+                    title: 'The Hotpath X-Ray',
+                    description: 'This is the core of JVM Hotpath: <b>Frequency</b>. The file tree aggregates counts across your entire project, highlighting where the most execution is happening.'
+                  }
+                },
+                {
+                  element: gutterCount || '.gutter',
+                  popover: {
+                    title: 'Line-Level Intensity',
+                    description: 'In the gutter, you see exactly how many times each specific line executed. This is a "Logic X-Ray" that finds algorithmic bottlenecks that sampling profilers often miss.'
+                  }
+                },
+                {
+                  element: '.sidebar-header',
+                  popover: {
+                    title: 'Project Navigation',
+                    description: 'Navigate your code logic. Use the <b>All files</b> toggle to see your entire project structure, or keep it off to focus only on the code that was actually touched.'
+                  }
+                },
+                {
+                  element: '[data-testid="live-status"]',
+                  popover: {
+                    title: 'Live Updates',
+                    description: 'The pulse indicates if the report is receiving live data. Watch these counts increase in real-time as your application runs.'
+                  }
+                },
+                {
+                  element: '[data-testid="diff-mode-group"]',
+                  popover: {
+                    title: 'Diff Mode',
+                    description: 'Click Diff Mode to re-zero counts. This allows you to isolate the execution impact of a specific action, perfect for catching regressions during refactoring.'
+                  }
+                },
+                {
+                  element: '.heatmap-legend',
+                  popover: {
+                    title: 'Global Heatmap',
+                    description: 'Colors are normalized across the entire project. This legend shows the color scale from 1 execution to the project-wide maximum, making it easy to spot the hottest paths instantly.'
+                  }
+                }
+              ]
+            });
+
+            driverObj.drive();
+          }, 150); // Small buffer for rendering
+        });
+      };
+
       // Proactively select a "hot" file if nothing is selected or if the current one is empty
       const findHotFile = (nodes: TreeNode[]): TreeNode | null => {
         for (const node of nodes) {
@@ -454,64 +523,8 @@ createApp({
           selectFile(hotFile);
         }
       }
-
-      // Give Vue a tick to render the gutter/highlights before starting
-      nextTick(() => {
-        const pickRandom = <T,>(items: T[]) =>
-          items[Math.floor(Math.random() * items.length)];
-        const pickCountElement = (selector: string) => {
-          const elements = Array.from(document.querySelectorAll(selector)).filter(
-            (el) => (el.textContent || '').trim().length > 0
-          );
-          return elements.length ? pickRandom(elements) : null;
-        };
-
-        const treeCount = pickCountElement('.node-count');
-        const gutterCount = pickCountElement('[data-testid="gutter-count"]');
-
-        const driverObj = driver({
-          showProgress: true,
-          steps: [
-            {
-              element: treeCount || '.sidebar-header',
-              popover: {
-                title: 'The Hotpath X-Ray',
-                description: 'This is the core of JVM Hotpath: <b>Frequency</b>. The file tree aggregates counts across your entire project, highlighting where the most execution is happening.'
-              }
-            },
-            {
-              element: gutterCount || '.gutter',
-              popover: {
-                title: 'Line-Level Intensity',
-                description: 'In the gutter, you see exactly how many times each specific line executed. This is a "Logic X-Ray" that finds algorithmic bottlenecks that sampling profilers often miss.'
-              }
-            },
-            {
-              element: '.sidebar-header',
-              popover: {
-                title: 'Project Navigation',
-                description: 'Navigate your code logic. Use the <b>All files</b> toggle to see your entire project structure, or keep it off to focus only on the code that was actually touched.'
-              }
-            },
-            {
-              element: '.toolbar-center > span',
-              popover: {
-                title: 'Live Updates',
-                description: 'The pulse indicates if the report is receiving live data. Watch these counts increase in real-time as your application runs.'
-              }
-            },
-            {
-              element: '.diff-btn-group',
-              popover: {
-                title: 'Diff Mode',
-                description: 'Click Diff Mode to re-zero counts. This allows you to isolate the execution impact of a specific action, perfect for catching regressions during refactoring.'
-              }
-            }
-          ]
-        });
-
-        driverObj.drive();
-      });
+      
+      performTour();
     };
 
     const getSidebarWidth = () => {
