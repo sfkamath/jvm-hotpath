@@ -16,11 +16,15 @@ application runs.
 
 ## The Gap in Java Tooling
 
-Years ago, when I inherited a system I barely understood, I hacked Cobertura—a coverage tool—to
-use it as a runtime analysis tool. By instrumenting the application and manually exercising
-specific behaviors, I could observe execution counts after the fact. It gave me a runtime-shaped
-mental map of the codebase and—crucially—an entry point into making feature changes with some
-confidence.
+The immediate pain today is vibe coding producing large chunks of new/refactored code faster than
+you can build a full mental model. Years ago I hit the same core problem in an inherited system
+and hacked Cobertura—a coverage tool—to use it as a runtime analysis tool. By instrumenting the
+application and manually exercising specific behaviors, I could observe execution counts after the
+fact. It gave me a runtime-shaped mental map of the codebase and—crucially—an entry point into
+making feature changes with some confidence.
+
+Static analysis tells you what could execute. Tests tell you what should execute. What I needed was
+to see what does execute when the system is alive under real workloads.
 
 Cobertura's last release was in 2015, and it doesn't fit modern Java toolchains/language
 features. Since then, no widely adopted, actively maintained tool (that I could find) focuses on
@@ -52,6 +56,9 @@ That question effectively decided the direction.
 This tool was born during a high-velocity vibe coding session where I was refactoring a core
 processing engine. Standard profilers missed the following bug because the system didn't *feel*
 slow yet:
+
+I wasn't trying to optimize with a full profiler. I wanted immediate runtime visibility into what
+was actually running.
 
 **The Bug:** A `.filter(r -> r.isDuplicate())` call was being executed 19 million times in 15 seconds.  
 **The Problem:** Each call was ~50 nanoseconds—easy for sampling profilers to under-sample.  
@@ -89,6 +96,9 @@ interactive HTML report that refreshes while your application runs, showing:
 - A global heatmap that makes hot paths stand out visually
 - JSONP-powered polling lets you open the report directly from disk (`file://`) and watch it
   update live (no server needed)
+
+The narrow focus is intentional: no flame graphs, no dashboards, no post-hoc traces—just
+line-level execution frequency mapped directly onto source code.
 
 The agent also writes `execution-report.json`, which gives you a machine-readable artifact you can
 feed into CI steps or vibe-coding tools/robots for automated line-execution analysis.

@@ -6,6 +6,8 @@ A lightweight Java agent that provides **per-line execution counts** for running
 
 In modern development workflows, especially during periods of rapid iteration or when integrating AI-generated code, developers frequently introduce significant changes. This **"vibe coding"** approach demands immediate feedback on how new logic actually executes, rather than relying on heavy, slow traditional profiling tools.
 
+Static analysis tells you what could execute. Tests tell you what should execute. Runtime execution counts show what does execute when the system is handling real workloads.
+
 ### What We Lost
 
 For years, **Cobertura** was the go-to tool for understanding how many times each line of code executed during runtime. It provided invaluable insights:
@@ -51,6 +53,13 @@ if (input == null) throw new IllegalArgumentException();
 - **JVM Hotpath says:** "1,400,000 executions" (revealing that nulls are unexpectedly common in production, or this is a critical loop).
 
 Execution counts reveal insights that simple coverage percentages can't:
+
+### Execution Counts as a Way to Read Code
+
+In today's vibe-coding workflows, large AI-generated/refactored chunks make it hard to know what actually runs. Inherited large systems have the same problem. Frequency data gives a runtime-shaped map of the codebase that helps you:
+- Focus first on code paths that dominate execution
+- Defer low-impact areas while building context
+- Spot dead or historical paths that no longer matter
 
 ### Use Cases
 
@@ -151,6 +160,7 @@ This project emerged directly from the frustrations of **"vibe coding"** in a mo
 - **Easy to use** - Just add `-javaagent` flag
 - **Beautiful reports** - Because developers deserve nice tools
 - **Open source** - Fill the ecosystem gap for everyone
+- **Narrow by design** - Frequency first; no dashboards, flame graphs, or post-hoc trace analysis
 
 ## How It Compares
 
