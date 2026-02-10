@@ -5,10 +5,10 @@ bursts, often with the help of LLMs—you need immediate feedback on how new log
 executes. Not comprehensive analysis. Not nanosecond-precise timing. Just a quick confirmation that
 your loops aren't spinning 10,000x more than they should.
 
-Traditional profilers are powerful but feel like overkill for quick validation. They operate at
-method-level granularity, require switching to a separate tool to analyze results, and introduce
-overhead (2-10%+ depending on mode) that makes them less suitable for continuous, live feedback
-during rapid iteration.
+Traditional profilers are powerful but can feel like overkill for quick validation. They usually
+present results at method/stack granularity and require context-switching to interpret. They also
+introduce overhead that ranges from negligible (e.g., JFR / sampling) to noticeable (call tracing
+/ instrumentation), which makes them less convenient as always-on feedback during rapid iteration.
 
 **jvm-hotpath** is a lightweight Java agent built for this workflow. It surfaces per-line execution
 counts directly in your source code, showing you exactly which lines run and how often—while your
@@ -22,19 +22,23 @@ specific behaviors, I could observe execution counts after the fact. It gave me 
 mental map of the codebase and—crucially—an entry point into making feature changes with some
 confidence.
 
-Cobertura has been abandoned since 2015 and doesn't support modern Java. Since then, no actively
-maintained tool has filled this specific gap:
+Cobertura's last release was in 2015, and it doesn't fit modern Java toolchains/language
+features. Since then, no widely adopted, actively maintained tool (that I could find) focuses on
+live per-line execution frequency as a first-class workflow:
 
-- **Coverage tools** (JaCoCo) tell you if a line executed at least once
+- **Coverage tools** (e.g., JaCoCo) are designed around coverage (did it execute), not frequency
+  (how many times did it execute)
 - **Profilers** tell you where CPU time is spent
 - **What's missing** is a simple way to see execution frequency under real conditions
 
 Modern Java tooling has moved in different directions, but the idea stuck with me. I spent some
-time evaluating what was available today. OpenClover doesn't support modern Java versions beyond
-17. I even attempted to try JCov, but quickly decided that building it from source wasn't worth
-the effort given the poor documentation and lack of Maven Central binaries. IntelliJ can surface
-execution counts internally (though you have to hover to see them), but they're buried inside a
-proprietary .ic format and not exposed in a way that's usable outside the IDE.
+time evaluating what was available today. OpenClover's current "full support" line is Java 17,
+with newer versions discussed as experimental/roadmap. JCov exists (it's an OpenJDK CodeTools
+project), but the build/install path is old-school and I couldn't find a straightforward "pull a
+jar from Maven Central and go" route. IntelliJ's built-in coverage is excellent for coverage, and
+it stores run data as IDE coverage suites (e.g., .ic). But it's still an IDE-centric workflow—
+not something you can trivially reuse in CI artifacts, feed back into vibe-coding tools/robots for
+line execution count analysis, or share as a standalone, live "what ran how often" view.
 
 At some point in that process, Claude put the choice quite bluntly:
 
@@ -50,7 +54,7 @@ processing engine. Standard profilers missed the following bug because the syste
 slow yet:
 
 **The Bug:** A `.filter(r -> r.isDuplicate())` call was being executed 19 million times in 15 seconds.  
-**The Problem:** Each call was ~50 nanoseconds—too fast for sampling profilers to notice.  
+**The Problem:** Each call was ~50 nanoseconds—easy for sampling profilers to under-sample.  
 **The Impact:** O(N²) instead of O(1) was hiding in plain sight.
 
 The filter was sitting inside a loop instead of being evaluated once. Classic mistake, but
@@ -68,7 +72,8 @@ In modern Java:
 - JIT compilation makes methods fast
 - The bottleneck is often algorithmic (O(N) vs O(1))
 - Logic errors create millions of unnecessary calls
-- Sampling profilers miss methods that execute quickly but frequently
+- Sampling profilers are fantastic, but they're statistical: you don't get exact invocation
+  counts, and very short "fast but frequent" work can be easy to under-sample
 
 **It's a "Logic X-Ray" not a "Resource Monitor."**
 
@@ -82,7 +87,11 @@ interactive HTML report that refreshes while your application runs, showing:
 - Syntax-highlighted source code
 - Execution counts next to each line
 - A global heatmap that makes hot paths stand out visually
-- Live updates without needing a web server
+- JSONP-powered polling lets you open the report directly from disk (`file://`) and watch it
+  update live (no server needed)
+
+The agent also writes `execution-report.json`, which gives you a machine-readable artifact you can
+feed into CI steps or vibe-coding tools/robots for automated line-execution analysis.
 
 **See it in action:**
 
@@ -120,6 +129,10 @@ mvn jvm-hotpath:prepare-agent exec:exec -Pinstrument -Dexec.mainClass="com.examp
 
 The report will be generated at `target/site/jvm-hotpath/execution-report.html`.
 
+For multi-module projects, generated code (OpenAPI/MapStruct), or shared libraries, the plugin can
+merge multiple source roots/packages in one report.
+Dependency source archives can also be passed directly via `sourcepath`.
+
 ### Manual Agent Usage
 
 If you prefer direct control:
@@ -130,9 +143,24 @@ java -javaagent:jvm-hotpath-agent.jar=packages=com.example,sourcepath=src/main/j
 
 **Key Parameters:**
 - `packages` - Comma-separated list of packages to instrument (e.g., `com.myapp`)
-- `sourcepath` - Path to source files for code overlay
+- `sourcepath` - Source root path(s) for code overlay (directories or source archives)
 - `flushInterval` - Seconds between report refreshes (0 = no auto-flush)
 - `verbose` - Print instrumentation details with clickable file URLs
+
+### Standalone Report Regeneration
+
+If you already have `execution-report.json` (for example from CI), you can regenerate the HTML UI
+without rerunning the application:
+
+```bash
+java -jar jvm-hotpath-agent.jar --data=target/site/jvm-hotpath/execution-report.json --output=target/site/jvm-hotpath/new-report.html
+```
+
+### What This Is Not
+
+- A coverage percentage tool (use JaCoCo for test coverage metrics)
+- A CPU timing profiler (use JFR/async-profiler for duration/allocation questions)
+- A 24/7 production monitoring system
 
 ## Beyond Performance: Dead Code and Cognitive Load
 
@@ -148,8 +176,10 @@ For anyone working quickly with AI-assisted tools, that kind of clarity is inval
 - **Zero timing overhead** - Just counts, no nanosecond measurements
 - **Counts every execution** - No sampling, no missing fast methods
 - **LLM-friendly output** - JSON reports you can pipe to Claude/GPT for analysis
-- **Live updates** - Watch counts grow in real-time without a web server
-- **Modern Java** - Supports Java 11-24, works with Spring Boot, Micronaut
+- **Live updates** - JSONP + polling lets you open the report from disk and watch counts update
+  live (no server needed)
+- **Modern Java** - Tested in CI on Java 11, 17, 21, 23, and 24; Java 25 is currently blocked by
+  ASM bytecode support; works with Spring Boot and Micronaut
 
 ## A Note on How This Was Built
 
@@ -172,5 +202,4 @@ more confidence?**
 
 **Project:** [github.com/sfkamath/jvm-hotpath](https://github.com/sfkamath/jvm-hotpath)  
 **Documentation:** [Full README](https://github.com/sfkamath/jvm-hotpath/blob/main/README.md)  
-**Motivation:** [Deep dive into the
-why](https://github.com/sfkamath/jvm-hotpath/blob/main/docs/Motivation.md)
+**Motivation:** [Deep dive into the why](https://github.com/sfkamath/jvm-hotpath/blob/main/docs/Motivation.md)

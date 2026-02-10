@@ -13,6 +13,8 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -218,6 +220,33 @@ class ReportGeneratorTest {
   }
 
   @Test
+  void testCollectDataWithSourceArchive() throws Exception {
+    Path tempDir = Files.createTempDirectory("archive-root");
+    Path sourceArchive = tempDir.resolve("shared-library-sources.jar");
+    try {
+      writeSourceArchive(
+          sourceArchive, "com/example/shared/SharedService.java", "class SharedService {}");
+
+      ExecutionCountStore.recordExecution("com.example.shared.SharedService", 42);
+
+      List<ReportGenerator.FileData> data =
+          ReportGenerator.collectData(sourceArchive.toString(), false);
+
+      ReportGenerator.FileData sharedFile =
+          data.stream()
+              .filter(f -> "com/example/shared/SharedService.java".equals(f.getPath()))
+              .findFirst()
+              .orElseThrow();
+
+      assertTrue(sharedFile.getContent().contains("SharedService"));
+      assertEquals(1L, sharedFile.getCounts().get(42));
+      assertEquals("shared-library", sharedFile.getProject());
+    } finally {
+      deleteRecursive(tempDir.toFile());
+    }
+  }
+
+  @Test
   void testReportLocationLogUsesFileUriAndPrintsOnce() throws IOException {
     Path outputDir = Files.createTempDirectory("report-log");
     Path sourceRoot = Files.createTempDirectory("source-root");
@@ -280,5 +309,14 @@ class ReportGeneratorTest {
       }
     }
     file.delete();
+  }
+
+  private void writeSourceArchive(Path archive, String entryPath, String content) throws IOException {
+    try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(archive))) {
+      ZipEntry entry = new ZipEntry(entryPath);
+      zip.putNextEntry(entry);
+      zip.write(content.getBytes(StandardCharsets.UTF_8));
+      zip.closeEntry();
+    }
   }
 }

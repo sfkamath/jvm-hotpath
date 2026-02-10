@@ -15,8 +15,8 @@ By default, reports are generated at `target/site/jvm-hotpath/execution-report.h
 val jvmHotpath by configurations.creating
 
 dependencies {
-    // Use the latest version from the Maven Central badge at the top of this file
-    jvmHotpath("io.github.sfkamath:jvm-hotpath-agent:0.2.+")
+    // Use the latest version from Maven Central
+    jvmHotpath("io.github.sfkamath:jvm-hotpath-agent:0.2.1")
 }
 
 tasks.named<JavaExec>("run") {
@@ -42,8 +42,8 @@ configurations {
 }
 
 dependencies {
-    // Use the latest version from the Maven Central badge at the top of this file
-    jvmHotpath 'io.github.sfkamath:jvm-hotpath-agent:0.2.+'
+    // Use the latest version from Maven Central
+    jvmHotpath 'io.github.sfkamath:jvm-hotpath-agent:0.2.1'
 }
 
 tasks.named('run', JavaExec) {
@@ -116,12 +116,12 @@ The agent supports the following comma-separated parameters:
 | `exclude` | Comma-separated list of packages/classes to explicitly skip. | (none) |
 | `flushInterval` | Interval in seconds to regenerate the report while the app is running. | 0 (no auto-flush) |
 | `output` | Path to the generated HTML report. | `target/site/jvm-hotpath/execution-report.html` |
-| `sourcepath` | Platform-specific path separator-joined roots of the Java source files. | (none) |
+| `sourcepath` | Platform-specific path separator-joined source roots (directories or source archives). | (none) |
 | `verbose` | If `true`, prints instrumentation details and periodic flush messages. | `false` |
 | `keepAlive` | Keep the JVM alive via a heartbeat thread. | `true` |
 
 ## Troubleshooting
 
 - **No hits recorded**: Ensure the `packages` argument correctly matches your application's package structure (e.g., `packages=com.example`).
-- **Missing source code in report**: Verify that `sourcepath` points to the directory containing your `.java` files (e.g., `src/main/java`).
+- **Missing source code in report**: Verify that `sourcepath` points to valid source roots (e.g., `src/main/java` directories or `*-sources.jar` files).
 - **Dependency Resolution**: Ensure you have `mavenCentral()` in your `repositories` block.

@@ -106,7 +106,7 @@ To build the agent JAR (shaded with all dependencies):
 mvn clean package -DskipTests
 ```
 
-The resulting JAR will be at `target/jvm-hotpath-agent-0.2.0.jar`.
+The resulting JAR will be at `target/jvm-hotpath-agent-0.2.1.jar`.
 
 > **Frontend build:** The report UI lives in `report-ui/` and is bundled via Vite. `mvn clean package` runs `frontend-maven-plugin` to execute `npm install`/`npm run build` inside that folder before packaging, producing a browser-safe `report-app.js` (IIFE bundle). When iterating on the UI you can run `npm install && npm run build` manually from `report-ui/` to refresh the bundled asset.
 
@@ -123,7 +123,7 @@ Add this to your `pom.xml`:
     <groupId>io.github.sfkamath</groupId>
     <artifactId>jvm-hotpath-maven-plugin</artifactId>
     <!-- Use the latest version from the Maven Central badge at the top of this file -->
-    <version>0.2.0</version>
+    <version>0.2.1</version>
     <executions>
         <execution>
             <goals>
@@ -161,7 +161,7 @@ Add this to your `pom.xml`:
     <groupId>io.github.sfkamath</groupId>
     <artifactId>jvm-hotpath-maven-plugin</artifactId>
     <!-- Use the latest version from the Maven Central badge at the top of this file -->
-    <version>0.2.0</version>
+    <version>0.2.1</version>
     <executions>
         <execution>
             <goals>
@@ -229,7 +229,7 @@ Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
                 <!-- Use the latest version from the Maven Central badge at the top of this file -->
-                <version>0.2.0</version>
+                <version>0.2.1</version>
                 <executions>
                     <execution>
                         <goals><goal>prepare-agent</goal></goals>
@@ -237,6 +237,8 @@ Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
                 </executions>
                 <configuration>
                     <flushInterval>5</flushInterval>
+                    <!-- Optional: include dependency sources via source archive -->
+                    <sourcepath>${user.home}/.m2/repository/com/example/shared-library/1.0.0/shared-library-1.0.0-sources.jar</sourcepath>
                     <!-- Optional but recommended to avoid -Dexec.mainClass on every run -->
                     <mainClass>com.example.Main</mainClass>
                 </configuration>
@@ -277,11 +279,13 @@ The plugin uses **"Smart Defaults"** but allows additive configuration.
 | `packages` | Packages to instrument. | **Appends** to project's `groupId`. |
 | `sourcepath` | Source roots for the report. | **Appends** to project's `src/main/java`. |
 | `mainClass` | Optional main class hint used to populate `exec.mainClass` for `exec:exec`. | **Inferred** from common Maven properties. |
-| `includes` | External dependencies to resolve. | Resolves `sources.jar` for given artifacts. |
+| `includes` | External dependencies to include. | Resolves dependency source archives and appends them to `sourcepath`. |
+
+You usually do not need to add `src/main/java` manually in `sourcepath`; the plugin appends it automatically.
 
 #### Example: Including External Dependencies
 
-If you want to instrument code from a dependency (and see its source code in the report), configure `includes` in your `pom.xml` to automatically resolve the source JAR from Maven:
+If you want to instrument code from a dependency (and see its source code in the report), configure `includes` in your `pom.xml`. The plugin resolves the dependency source archive from Maven and appends it to `sourcepath`:
 
 ```xml
 <configuration>
@@ -297,13 +301,17 @@ If you want to instrument code from a dependency (and see its source code in the
 ```
 
 **Via Command Line:**
-You can achieve the same by pointing `sourcepath` directly to a sources JAR in your local repository:
+You can achieve the same by setting dependency packages directly and pointing `sourcepath` at source roots (directories and/or source archives):
 
 ```bash
 mvn verify \
   -Djvm-hotpath.packages=com.example.shared \
   -Djvm-hotpath.sourcepath=$HOME/.m2/repository/com/example/shared-library/1.0.0/shared-library-1.0.0-sources.jar
 ```
+
+> **Note:** `sourcepath` accepts directories and source archives (`.jar`/`.zip`).
+>
+> **Version matching:** If you provide dependency source archives manually via `sourcepath`, use the same version as the runtime dependency to keep line mapping accurate. Prefer `includes` when possible so sources are resolved automatically.
 
 ### Manual Agent Usage
 
@@ -313,7 +321,7 @@ If you prefer not to use the plugin, you can attach the agent manually.
 ```bash
 mvn clean package -DskipTests
 ```
-The JAR will be located at `agent/target/jvm-hotpath-agent-0.2.0.jar`.
+The JAR will be located at `agent/target/jvm-hotpath-agent-0.2.1.jar`.
 
 **Run with Agent:**
 
@@ -323,7 +331,7 @@ java -javaagent:${PATH_TO_AGENT_JAR}=packages=com.example,sourcepath=src/main/ja
 
 #### Multi-source invocation
 
-When the instrumented application depends on multiple modules or libraries, repeat the `packages`/`sourcepath` values in a single agent argument string. Each `packages` entry should map to one of the supplied source roots (hand-written or generated) so the UI can show them under the correct project; mix generated-source directories (`target/generated-sources`) etc. with the corresponding `src/main/java` roots as needed. Package lists stay comma-separated, while source roots are joined with the platform-specific `Path.pathSeparator` (`:` on macOS/Linux, `;` on Windows). Example structure:
+When the instrumented application depends on multiple modules or libraries, repeat the `packages`/`sourcepath` values in a single agent argument string. Each `packages` entry should map to one of the supplied source roots (hand-written or generated) so the UI can show them under the correct project; mix generated-source directories (`target/generated-sources`) etc. with the corresponding `src/main/java` roots as needed. Package lists stay comma-separated, while source roots are joined with the platform-specific `Path.pathSeparator` (`:` on macOS/Linux, `;` on Windows). Source roots can be directories or source archives (`.jar`/`.zip`). Example structure:
 
 ```bash
 java -javaagent:${PATH_TO_AGENT_JAR}=packages=com.example,com.other.module,\ 
@@ -351,7 +359,7 @@ module-b
 | `exclude` | Comma-separated list of packages/classes to explicitly skip. | (none) |
 | `flushInterval` | Interval in seconds to regenerate the report while the app is running. | 0 (no auto-flush) |
 | `output` | Path to the generated HTML report. | `target/site/jvm-hotpath/execution-report.html` |
-| `sourcepath` | Path to the root of the Java source files for code overlay. | (none) |
+| `sourcepath` | Path(s) to source roots for code overlay (directories or source archives). | (none) |
 | `verbose` | If `true`, prints instrumentation details and periodic flush messages. | `false` |
 | `keepAlive` | Keep the JVM alive via a heartbeat thread (useful for scheduled apps without a server). | `true` |
 
