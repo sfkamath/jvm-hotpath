@@ -17,16 +17,16 @@ A Java agent that instruments classes at runtime to record and visualize line-le
 - **Bytecode Instrumentation**: Automatically injects counting logic into target methods using ASM.
 - **Frequency Analysis**: Tracks exactly how many times each line executes, rather than just "if" it was hit.
 - **Modern UI**: Interactive report built with Vue.js 3 and PrismJS.
-- **Live Updates**: Supports "serverless" real-time updates via JSONP, allowing you to watch counts increase while the app runs (even when opening the report as a local file).
+- **Live Updates**: Uses JSONP + polling for "serverless" real-time updates, so you can watch counts increase while the app runs (even from `file://`).
 - **Global Heatmap**: Consistent coloring across all source files based on the project-wide maximum execution count.
 - **Activity Highlighting**: Visual "flash" indicators in the file tree when counts for a specific file increase.
 - **Standalone Mode**: Regenerate the HTML report from saved JSON data without re-running the application.
 
 ## Motivation
 
-JVM Hotpath is **not a coverage tool**. Traditional coverage tools (JaCoCo, OpenClover, JCov) focus on a binary question: "*Was this line executed during tests?*". This is critical for quality metrics but useless for understanding **runtime behavior** and **hot-path analysis**.
+JVM Hotpath is **not a coverage tool**. Coverage tools (e.g., JaCoCo, OpenClover, JCov) are designed around coverage (did it execute), not frequency (how many times did it execute). That's critical for quality metrics, but limited for understanding **runtime behavior** and **hot-path analysis**.
 
-JVM Hotpath focus on frequency: "*How many times does this line execute in a real-world workload?*"
+JVM Hotpath focuses on frequency: "*How many times does this line execute in a real-world workload?*"
 
 See [docs/Motivation.md](docs/Motivation.md) for a more detailed deep-dive into the goals and architectural choices of this project.
 
@@ -45,7 +45,7 @@ This tool was born during a high-velocity "vibe coding" session where I was refa
 Standard profilers missed the following bug because the system didn't *feel* slow yet, but the logic was fundamentally broken:
 
 **The Bug:** A logic check (e.g., `isValid()`) was being called 19 million times in 15 seconds.  
-**The Problem:** Each call was ~50 nanoseconds - too fast for sampling profilers to notice.  
+**The Problem:** Each call was ~50 nanoseconds - easy for sampling profilers to under-sample.  
 **The Impact:** Algorithmic complexity (O(N) instead of O(1)) was killing performance.
 
 Standard profilers showed the method as "not hot" because the CPU wasn't stuck there. But 19 million calls × 50ns = 950ms of wasted time hidden in plain sight.
@@ -55,7 +55,7 @@ Standard profilers showed the method as "not hot" because the CPU wasn't stuck t
 | Tool Type | What It Shows | What It Misses |
 |-----------|---------------|----------------|
 | **Sampling Profilers**<br/>(VisualVM, JFR) | CPU-intensive methods | Fast methods called millions of times |
-| **Commercial Profilers**<br/>(JProfiler, YourKit) | Timing with nanosecond precision | Usability (10x-50x overhead, heavy GUIs) |
+| **Commercial Profilers**<br/>(JProfiler, YourKit) | Deep timing and call tracing | Always-on convenience (heavier workflow, and instrumentation/tracing can add noticeable overhead) |
 | **APM Tools**<br/>(Datadog, New Relic) | Request/span-level metrics | Line-level logic errors |
 
 ### The Key Insight: Frequency ≠ Duration
@@ -67,7 +67,7 @@ In modern Java:
 - JIT compilation makes methods fast
 - The bottleneck is often algorithmic (O(N) vs O(1))
 - Logic errors create millions of unnecessary calls
-- Each call is too fast to show up in sampling
+- Sampling profilers are statistical: they do not provide exact invocation counts, and very short "fast but frequent" work can be under-sampled
 
 **Example:**
 ```
@@ -93,7 +93,7 @@ When you see "Line 42: executed 19 million times" in a 15-second run, you don't 
 
 ## Requirements
 
-- **Java:** 11 or higher (verified on 11, 17, 21, 23; supports 24)
+- **Java:** 11 or higher (tested in CI on 11, 17, 21, 23, and 24)
 - **Build Tool:** Maven 3.6+ or Gradle 7.0+
 
 The agent is compiled to Java 11 bytecode for maximum compatibility. Support for Java 25 is currently a hard limit (see Development section).

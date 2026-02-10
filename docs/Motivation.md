@@ -14,19 +14,19 @@ For years, **Cobertura** was the go-to tool for understanding how many times eac
 - Dead code identification
 - Runtime behavior analysis beyond simple test coverage
 
-**Cobertura was abandoned in 2015** and doesn't support modern Java (Java 11+, 17, 21).
+**Cobertura's last release was in 2015**, and it doesn't fit modern Java toolchains/language features.
 
 ### What Currently Exists (and Why It's Not Enough)
 
 | Tool | Status | Java 21 Support | Execution Counts | Issue |
 |------|--------|-----------------|------------------|-------|
 | **Cobertura** | ❌ Abandoned (2015) | ❌ | ✅ | No longer maintained |
-| **OpenClover** | ⚠️ Unmaintained | ❌ | ✅ | Fails on Java 21 bytecode |
-| **JaCoCo** | ✅ Active | ✅ | ❌ | Only shows coverage %, not counts |
-| **JCov** | ✅ Active | ✅ | ✅ | No Maven repo, must build from source, poor docs |
-| **IDE-based Coverage** | ✅ Active | ✅ | ⚠️ | Shows counts in IDE only, no export |
+| **OpenClover** | ⚠️ Limited modern support | ⚠️ | ✅ | "Full support" line is Java 17; newer versions are discussed as roadmap/experimental |
+| **JaCoCo** | ✅ Active | ✅ | ❌ | Coverage-first workflow ("did it execute"), not frequency-first ("how many times") |
+| **JCov** | ✅ Active | ✅ | ✅ | OpenJDK project, but install/build flow is old-school and not a straightforward Maven Central "pull jar and go" workflow |
+| **IDE-based Coverage** | ✅ Active | ✅ | ⚠️ | IDE-centric workflow; hard to reuse as standalone CI artifacts or robot-friendly analysis |
 
-**The gap:** No actively maintained, easy-to-use tool provides runtime execution counts for modern Java applications.
+**The gap:** No widely adopted, actively maintained tool (that I could find) treats live per-line execution frequency as a first-class workflow.
 
 ## Why Execution Analysis is Not Coverage
 
@@ -105,10 +105,11 @@ One tells you it was executed. The other tells you it's a critical hotspot.
     - Beautiful, interactive web interface
     - Syntax-highlighted source code
     - Visual heatmaps (red = frequently executed, green = rarely)
-    - Live updates while your app runs
+    - JSONP + polling for live updates while your app runs (including `file://`, no server required)
 
 4. **Modern Java Support**
-    - Java 11, 17, 21+ compatible
+    - Tested in CI on Java 11, 17, 21, 23, and 24
+    - Java 25 currently blocked by ASM bytecode support
     - Works with common DI frameworks (Spring Boot, Micronaut, etc.)
     - Handles generated classes, proxies, lambdas
 
@@ -137,10 +138,10 @@ This project emerged directly from the frustrations of **"vibe coding"** in a mo
 
 1. **Started with a need:** Modern Java app (Java 21) needed runtime execution analysis, especially for quickly validating new logic.
 2. **Tried existing tools:**
-    - Cobertura → Doesn't work with Java 21
-    - Clover → Fails on modern bytecode
-    - JaCoCo → Doesn't show execution counts
-    - JCov → No binaries, complex build, poor docs
+    - Cobertura → Last release in 2015; doesn't fit modern toolchains/language features
+    - OpenClover → "Full support" line is Java 17, with newer versions discussed as roadmap/experimental
+    - JaCoCo → Excellent for coverage, but not a first-class execution-frequency workflow
+    - JCov → OpenJDK project, but old-school build/install path
 3. **Built a solution:** This tool, using ASM for instrumentation, to provide immediate feedback.
 
 ### Design Philosophy
@@ -155,19 +156,20 @@ This project emerged directly from the frustrations of **"vibe coding"** in a mo
 
 ### vs. Cobertura (Spiritual Successor)
 - ✅ Same per-line execution counts
-- ✅ Modern Java support (11, 17, 21+)
+- ✅ Modern Java support (tested in CI on 11, 17, 21, 23, 24)
 - ✅ Better visualizations
 - ➕ Live updates
 - ➕ Active maintenance
 
 ### vs. JaCoCo (Different Purpose)
-- JaCoCo: "Did this line execute?" (coverage %)
+- JaCoCo: Coverage counters and percentages (primarily "did this execute?")
 - JVM Hotpath: "How many times?" (frequency analysis)
 - Use JaCoCo for: Test coverage metrics
 - Use JVM Hotpath for: Runtime behavior analysis
 
 ### vs. JCov (Easier Alternative)
-- ✅ Maven Central availability (JCov requires manual build)
+- ✅ Straightforward Maven Central artifacts and setup for JVM Hotpath
+- ⚠️ JCov setup is currently more old-school for most Maven users
 - ✅ Simple setup
 - ✅ Better documentation
 - ✅ Modern web UI
@@ -249,7 +251,8 @@ This project is our contribution to filling that gap.
 **Current State:** Fully functional, production-ready for analysis (not recommended for 24/7 production monitoring due to overhead)
 
 **Tested With:**
-- Java 21 (compatible with 11 to 24)
+- Java 11, 17, 21, 23, and 24 (CI matrix)
+- Java 25 currently blocked by ASM bytecode support
 - Spring Boot 3.x
 - Micronaut 4.x
 - Plain Java applications
