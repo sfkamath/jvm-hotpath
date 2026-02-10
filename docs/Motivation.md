@@ -264,7 +264,7 @@ java -javaagent:jvm-hotpath-agent.jar=packages=com.yourapp,flushInterval=5 \
      -jar your-application.jar
 
 # Open the generated report
-open target/site/execution-report.html
+open target/site/jvm-hotpath/execution-report.html
 ```
 
 See the full [Usage Guide](../README.md#usage) for detailed instructions.

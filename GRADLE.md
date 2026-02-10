@@ -7,6 +7,7 @@ While a native Gradle plugin is planned, you can easily use JVM Hotpath with Gra
 ## Basic Configuration
 
 The agent JAR is downloaded as a dependency and attached via `jvmArgs`.
+By default, reports are generated at `target/site/jvm-hotpath/execution-report.html`.
 
 ### Kotlin DSL (`build.gradle.kts`)
 
@@ -28,7 +29,7 @@ tasks.named<JavaExec>("run") {
 // Optional: Enable for tests
 tasks.test {
     val agentJar = jvmHotpath.singleFile.absolutePath
-    val agentArgs = "packages=com.example,output=target/test-report.html"
+    val agentArgs = "packages=com.example,output=target/site/jvm-hotpath/test-report.html"
     jvmArgs("-javaagent:${agentJar}=${agentArgs}")
 }
 ```
@@ -54,7 +55,7 @@ tasks.named('run', JavaExec) {
 // Optional: Enable for tests
 test {
     def agentJar = configurations.jvmHotpath.singleFile.absolutePath
-    def agentArgs = "packages=com.example,output=target/test-report.html"
+    def agentArgs = "packages=com.example,output=target/site/jvm-hotpath/test-report.html"
     jvmArgs "-javaagent:${agentJar}=${agentArgs}"
 }
 ```
@@ -114,9 +115,9 @@ The agent supports the following comma-separated parameters:
 | `packages` | Comma-separated list of packages to instrument (e.g., `com.example,org.myapp`). | (none) |
 | `exclude` | Comma-separated list of packages/classes to explicitly skip. | (none) |
 | `flushInterval` | Interval in seconds to regenerate the report while the app is running. | 0 (no auto-flush) |
-| `output` | Path to the generated HTML report. | `execution-report.html` |
+| `output` | Path to the generated HTML report. | `target/site/jvm-hotpath/execution-report.html` |
 | `sourcepath` | Platform-specific path separator-joined roots of the Java source files. | (none) |
-| `verbose` | If `true`, prints instrumentation details to stdout. | `false` |
+| `verbose` | If `true`, prints instrumentation details and periodic flush messages. | `false` |
 | `keepAlive` | Keep the JVM alive via a heartbeat thread. | `true` |
 
 ## Troubleshooting

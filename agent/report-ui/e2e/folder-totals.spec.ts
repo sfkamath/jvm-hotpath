@@ -7,14 +7,14 @@ const projectRoot = path.resolve(process.cwd(), '../../');
 const reports = [
   {
     name: 'Spring',
-    htmlPath: path.join(projectRoot, 'integration-tests-spring/target/execution-report.html'),
-    jsonPath: path.join(projectRoot, 'integration-tests-spring/target/execution-report.json'),
+    htmlPath: path.join(projectRoot, 'integration-tests-spring/target/site/jvm-hotpath/execution-report.html'),
+    jsonPath: path.join(projectRoot, 'integration-tests-spring/target/site/jvm-hotpath/execution-report.json'),
     folderPath: 'io/github/sfkamath/jvmhotpath/sample'
   },
   {
     name: 'Micronaut',
-    htmlPath: path.join(projectRoot, 'integration-tests-micronaut/target/execution-report.html'),
-    jsonPath: path.join(projectRoot, 'integration-tests-micronaut/target/execution-report.json'),
+    htmlPath: path.join(projectRoot, 'integration-tests-micronaut/target/site/jvm-hotpath/execution-report.html'),
+    jsonPath: path.join(projectRoot, 'integration-tests-micronaut/target/site/jvm-hotpath/execution-report.json'),
     folderPath: 'io/github/sfkamath/jvmhotpath/sample/micronaut'
   }
 ];

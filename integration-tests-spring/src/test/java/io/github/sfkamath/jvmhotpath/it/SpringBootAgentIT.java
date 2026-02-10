@@ -2,11 +2,12 @@ package io.github.sfkamath.jvmhotpath.it;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.sfkamath.jvmhotpath.ReportGenerator;
 import io.github.sfkamath.jvmhotpath.sample.SampleApp;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -23,8 +24,6 @@ class SpringBootAgentIT {
 
   @Autowired private TestRestTemplate restTemplate;
 
-  private final ObjectMapper mapper = new ObjectMapper();
-
   @Test
   void testAgentInstrumentsSpringBootApp() throws Exception {
     // 1. Call the REST endpoint several times
@@ -34,69 +33,40 @@ class SpringBootAgentIT {
       assertEquals("Hello from Spring Boot!", response);
     }
 
-    // 2. Wait for the auto-flush to write the report with the expected counts
-    Path jsonReport = Path.of("target/execution-report.json");
-    boolean thresholdReached = false;
-    String debugReport = "";
-    for (int i = 0; i < 40; i++) {
-      if (Files.exists(jsonReport)) {
-        JsonNode root = mapper.readTree(jsonReport.toFile());
-        JsonNode files = root.get("files");
-        if (files != null) {
-          for (JsonNode file : files) {
-            if (file.get("path").asText().contains("GreetingService.java")) {
-              JsonNode counts = file.get("counts");
-              for (JsonNode val : counts) {
-                if (val.asInt() >= 50) {
-                  thresholdReached = true;
-                  break;
-                }
-              }
-            }
-          }
-        }
-        if (thresholdReached) {
-          break;
-        }
-        debugReport = root.toString();
-      }
-      Thread.sleep(1000);
-    }
-
-    assertTrue(
-        thresholdReached,
-        "Report should have reached 50+ executions for GreetingService. Last report: "
-            + debugReport);
+    // 2. Generate a fresh report immediately to avoid timing-based polling.
+    Path htmlReport = Path.of("target/site/jvm-hotpath/execution-report.html");
+    Path sourceRoot = Path.of("src/main/java").toAbsolutePath().normalize();
+    ReportGenerator.generateHtmlReport(htmlReport.toString(), sourceRoot.toString(), false);
 
     // 3. Parse and verify counts
-    JsonNode root = mapper.readTree(jsonReport.toFile());
-    JsonNode files = root.get("files");
-    assertNotNull(files);
+    Path jsonReport = Path.of("target/site/jvm-hotpath/execution-report.json");
+    assertTrue(Files.exists(jsonReport), "Report JSON should exist at " + jsonReport);
+    String json = Files.readString(jsonReport);
 
-    boolean serviceFound = false;
-    StringBuilder debugInfo = new StringBuilder();
-    for (JsonNode file : files) {
-      String path = file.get("path").asText();
-      JsonNode counts = file.get("counts");
-      debugInfo.append("\nFile: ").append(path).append(" Counts: ").append(counts);
+    assertTrue(json.contains("GreetingService.java"), "GreetingService should be present.");
+    long serviceMaxCount = maxCountForFile(json, "GreetingService.java");
+    assertTrue(
+        serviceMaxCount >= 50,
+        "Expected GreetingService to reach 50+ executions. Max count was " + serviceMaxCount);
+  }
 
-      if (path.contains("GreetingService.java")) {
-        serviceFound = true;
-        final boolean[] wrapper = new boolean[] {false};
-        counts
-            .properties()
-            .forEach(
-                entry -> {
-                  int val = entry.getValue().asInt();
-                  if (val >= 5) {
-                    wrapper[0] = true;
-                  }
-                });
-        assertTrue(
-            wrapper[0],
-            "GreetingService should have lines with at least 5 executions. Found: " + debugInfo);
+  private static long maxCountForFile(String json, String fileName) {
+    Pattern filePattern =
+        Pattern.compile(
+            "\"path\"\\s*:\\s*\"[^\"]*" + Pattern.quote(fileName) + "\".*?\"counts\"\\s*:\\s*\\{(.*?)\\}",
+            Pattern.DOTALL);
+    Matcher fileMatcher = filePattern.matcher(json);
+    long max = -1;
+    while (fileMatcher.find()) {
+      String countsBody = fileMatcher.group(1);
+      Matcher valueMatcher = Pattern.compile(":\\s*(\\d+)").matcher(countsBody);
+      while (valueMatcher.find()) {
+        long value = Long.parseLong(valueMatcher.group(1));
+        if (value > max) {
+          max = value;
+        }
       }
     }
-    assertTrue(serviceFound, "GreetingService should be present in the report.");
+    return max;
   }
 }

@@ -3,8 +3,7 @@ package io.github.sfkamath.jvmhotpath.it;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.sfkamath.jvmhotpath.ReportGenerator;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.runtime.server.EmbeddedServer;
@@ -12,6 +11,8 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 @MicronautTest
@@ -23,8 +24,6 @@ class MicronautAgentIT {
   @Client("/")
   HttpClient client;
 
-  private final ObjectMapper mapper = new ObjectMapper();
-
   @Test
   void testAgentInstrumentsMicronautApp() throws Exception {
     // 1. Call the REST endpoint several times
@@ -33,50 +32,50 @@ class MicronautAgentIT {
       assertEquals("Hello from Micronaut!", response);
     }
 
-    // 2. Wait for the auto-flush to write the report with the expected counts
-    // We use the same target directory as SpringBootAgentIT, but maybe we should ensure they don't
-    // overlap if run in parallel.
-    // For now, Failsafe runs them sequentially in the same JVM fork or different forks.
-    Path jsonReport = Path.of("target/execution-report.json");
-    boolean thresholdReached = false;
+    // 2. Generate a fresh report immediately to avoid timing-based polling.
+    Path htmlReport = Path.of("target/site/jvm-hotpath/execution-report.html");
+    Path sourceRoot = Path.of("src/main/java").toAbsolutePath().normalize();
+    ReportGenerator.generateHtmlReport(htmlReport.toString(), sourceRoot.toString(), false);
 
-    for (int i = 0; i < 40; i++) {
-      if (Files.exists(jsonReport)) {
-        JsonNode root = mapper.readTree(jsonReport.toFile());
-        JsonNode files = root.get("files");
-        if (files != null) {
-          for (JsonNode file : files) {
-            if (file.get("path").asText().contains("MicronautGreetingService.java")) {
-              JsonNode counts = file.get("counts");
-              for (JsonNode val : counts) {
-                if (val.asInt() >= 50) {
-                  thresholdReached = true;
-                  break;
-                }
-              }
-            }
-          }
-        }
-        if (thresholdReached) {
-          break;
-        }
-      }
-      Thread.sleep(1000);
-    }
+    // 3. Parse and verify counts.
+    Path jsonReport = Path.of("target/site/jvm-hotpath/execution-report.json");
+    assertTrue(Files.exists(jsonReport), "Report JSON should exist at " + jsonReport);
 
+    String json = Files.readString(jsonReport);
+    long serviceMaxCount = maxCountForFile(json, "MicronautGreetingService.java");
+    assertTrue(json.contains("MicronautGreetingService.java"), "Service file should be present.");
     assertTrue(
-        thresholdReached,
-        "Report should have reached 50+ executions for MicronautGreetingService.");
+        serviceMaxCount >= 50,
+        "Report should have reached 50+ executions for MicronautGreetingService. Max count was "
+            + serviceMaxCount);
 
-    // 3. Verify specifically the controller hit
-    JsonNode root = mapper.readTree(jsonReport.toFile());
-    boolean controllerFound = false;
-    for (JsonNode file : root.get("files")) {
-      if (file.get("path").asText().contains("MicronautGreetingController.java")) {
-        controllerFound = true;
-        assertTrue(file.get("counts").size() > 0, "Controller should have recorded counts");
+    // 4. Verify specifically the controller hit.
+    long controllerMaxCount = maxCountForFile(json, "MicronautGreetingController.java");
+    assertTrue(
+        json.contains("MicronautGreetingController.java"),
+        "MicronautGreetingController should be in the report");
+    assertTrue(
+        controllerMaxCount > 0,
+        "Controller should have recorded counts. Max count was " + controllerMaxCount);
+  }
+
+  private static long maxCountForFile(String json, String fileName) {
+    Pattern filePattern =
+        Pattern.compile(
+            "\"path\"\\s*:\\s*\"[^\"]*" + Pattern.quote(fileName) + "\".*?\"counts\"\\s*:\\s*\\{(.*?)\\}",
+            Pattern.DOTALL);
+    Matcher fileMatcher = filePattern.matcher(json);
+    long max = -1;
+    while (fileMatcher.find()) {
+      String countsBody = fileMatcher.group(1);
+      Matcher valueMatcher = Pattern.compile(":\\s*(\\d+)").matcher(countsBody);
+      while (valueMatcher.find()) {
+        long value = Long.parseLong(valueMatcher.group(1));
+        if (value > max) {
+          max = value;
+        }
       }
     }
-    assertTrue(controllerFound, "MicronautGreetingController should be in the report");
+    return max;
   }
 }

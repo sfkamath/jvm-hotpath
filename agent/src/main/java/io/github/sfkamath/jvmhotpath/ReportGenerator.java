@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -26,6 +27,7 @@ public final class ReportGenerator {
 
   private static final Logger logger = Logger.getLogger(ReportGenerator.class.getName());
   private static final ObjectMapper mapper = new ObjectMapper();
+  private static final AtomicBoolean reportLocationLogged = new AtomicBoolean(false);
 
   /** Generates the report from current memory state. */
   public static void generateHtmlReport(String outputPath, String sourcePath, boolean verbose)
@@ -45,13 +47,13 @@ public final class ReportGenerator {
     Files.writeString(paths.jsonpPath, jsonpContent);
 
     // 3. Render HTML (embedded data for initial load)
-    renderReport(payload, paths, verbose);
+    renderReport(payload, paths);
   }
 
   /** Regenerates the report from a saved JSON data file. */
   public static void regenerateReport(String jsonPath, String outputPath) throws IOException {
     ReportPayload payload = readPayload(jsonPath);
-    renderReport(payload, resolveReportPaths(outputPath), true);
+    renderReport(payload, resolveReportPaths(outputPath));
   }
 
   static List<FileData> collectData(String sourcePath, boolean verbose) throws IOException {
@@ -122,8 +124,7 @@ public final class ReportGenerator {
     return fileDataList;
   }
 
-  private static void renderReport(ReportPayload payload, ReportPaths paths, boolean verbose)
-      throws IOException {
+  private static void renderReport(ReportPayload payload, ReportPaths paths) throws IOException {
     String template = loadTemplate();
     if (template == null) {
       logger.severe("Could not load report template.");
@@ -141,10 +142,8 @@ public final class ReportGenerator {
             .replace("/*JSONP_FILE*/", paths.jsonpFileName);
 
     Files.writeString(paths.htmlPath, finalHtml);
-    if (verbose) {
-      logger.info(
-          "Report written to: file:///"
-              + paths.htmlPath.toAbsolutePath().toString().replace("\\", "/"));
+    if (reportLocationLogged.compareAndSet(false, true)) {
+      logger.info("Report written to: " + toFileUri(paths.htmlPath));
     }
 
     copyResource(paths.outputDir, "/io/github/sfkamath/jvmhotpath/report-app.js", "report-app.js");
@@ -275,7 +274,9 @@ public final class ReportGenerator {
 
   private static ReportPaths resolveReportPaths(String outputPath) {
     String safeOutput =
-        outputPath == null || outputPath.trim().isEmpty() ? "execution-report.html" : outputPath;
+        outputPath == null || outputPath.trim().isEmpty()
+            ? "target/site/jvm-hotpath/execution-report.html"
+            : outputPath;
     Path htmlPath = Path.of(safeOutput);
     Path dir = htmlPath.getParent();
     Path fileNamePath = htmlPath.getFileName();
@@ -288,6 +289,14 @@ public final class ReportGenerator {
     Path jsonPath = outputDir.resolve(jsonFileName);
     Path jsonpPath = outputDir.resolve(jsonpFileName);
     return new ReportPaths(htmlPath, outputDir, jsonPath, jsonpPath, jsonFileName, jsonpFileName);
+  }
+
+  private static String toFileUri(Path path) {
+    return path.toAbsolutePath().normalize().toUri().toString();
+  }
+
+  static void resetReportLocationLogForTests() {
+    reportLocationLogged.set(false);
   }
 
   private static String simpleClassName(String className) {

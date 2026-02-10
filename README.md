@@ -180,7 +180,7 @@ Then run your tests:
 ```bash
 mvn verify
 ```
-The report will be generated at `target/site/execution-report.html`.
+The report will be generated at `target/site/jvm-hotpath/execution-report.html`.
 
 #### Multi-source invocation
 
@@ -237,6 +237,8 @@ Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
                 </executions>
                 <configuration>
                     <flushInterval>5</flushInterval>
+                    <!-- Optional but recommended to avoid -Dexec.mainClass on every run -->
+                    <mainClass>com.example.Main</mainClass>
                 </configuration>
             </plugin>
             <plugin>
@@ -256,8 +258,15 @@ Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
 
 Then run (ensure the `instrument` profile is active for prefix resolution):
 ```bash
+mvn jvm-hotpath:prepare-agent exec:exec -Pinstrument
+```
+
+If your project does not define a main class in `pom.xml`, pass it on the CLI:
+```bash
 mvn jvm-hotpath:prepare-agent exec:exec -Pinstrument -Dexec.mainClass="com.example.Main"
 ```
+
+`prepare-agent` populates `exec.mainClass` from (in order): `-Dexec.mainClass`, `jvm-hotpath.mainClass`, `main.class`, `mainClass`, `start-class`, and `spring-boot.run.main-class`.
 
 ### Advanced Configuration
 
@@ -267,6 +276,7 @@ The plugin uses **"Smart Defaults"** but allows additive configuration.
 | :--- | :--- | :--- |
 | `packages` | Packages to instrument. | **Appends** to project's `groupId`. |
 | `sourcepath` | Source roots for the report. | **Appends** to project's `src/main/java`. |
+| `mainClass` | Optional main class hint used to populate `exec.mainClass` for `exec:exec`. | **Inferred** from common Maven properties. |
 | `includes` | External dependencies to resolve. | Resolves `sources.jar` for given artifacts. |
 
 #### Example: Including External Dependencies
@@ -308,7 +318,7 @@ The JAR will be located at `agent/target/jvm-hotpath-agent-0.2.0.jar`.
 **Run with Agent:**
 
 ```bash
-java -javaagent:${PATH_TO_AGENT_JAR}=packages=com.example,sourcepath=src/main/java,flushInterval=5,output=target/site/execution-report.html -jar your-app.jar
+java -javaagent:${PATH_TO_AGENT_JAR}=packages=com.example,sourcepath=src/main/java,flushInterval=5,output=target/site/jvm-hotpath/execution-report.html -jar your-app.jar
 ```
 
 #### Multi-source invocation
@@ -318,7 +328,7 @@ When the instrumented application depends on multiple modules or libraries, repe
 ```bash
 java -javaagent:${PATH_TO_AGENT_JAR}=packages=com.example,com.other.module,\ 
     flushInterval=5,\ 
-    output=target/site/execution-report.html,\ 
+    output=target/site/jvm-hotpath/execution-report.html,\ 
     sourcepath=module-a/src/main/java:module-a/target/generated-sources:module-b/src/main/java,\ 
     -jar your-app.jar
 ```
@@ -340,21 +350,21 @@ module-b
 | `packages` | Comma-separated list of packages to instrument (e.g., `com.myapp`). | (none) |
 | `exclude` | Comma-separated list of packages/classes to explicitly skip. | (none) |
 | `flushInterval` | Interval in seconds to regenerate the report while the app is running. | 0 (no auto-flush) |
-| `output` | Path to the generated HTML report. | `target/site/execution-report.html` |
+| `output` | Path to the generated HTML report. | `target/site/jvm-hotpath/execution-report.html` |
 | `sourcepath` | Path to the root of the Java source files for code overlay. | (none) |
-| `verbose` | If `true`, prints instrumentation details and flush success messages (with clickable file URLs) to stdout. | `false` |
+| `verbose` | If `true`, prints instrumentation details and periodic flush messages. | `false` |
 | `keepAlive` | Keep the JVM alive via a heartbeat thread (useful for scheduled apps without a server). | `true` |
 
 ## Viewing the Report
 
-1.  Open the generated `target/site/execution-report.html` file in any modern web browser.
+1.  Open the generated `target/site/jvm-hotpath/execution-report.html` file in any modern web browser.
 2.  If `flushInterval` is set, the report will automatically poll for updates from a sibling `execution-report.js` file.
 3.  **No Web Server Required**: Thanks to the JSONP implementation, live updates work even when the file is opened directly from disk (`file://` protocol).
 4.  If you open the report from disk and nothing renders, hard-refresh once (the `report-app.js` bundle is copied alongside the report and may be cached).
 
 ## Report Artifacts
 
-The agent produces both human-readable and machine-readable output in the `target/site/` directory:
+The agent produces both human-readable and machine-readable output in the `target/site/jvm-hotpath/` directory:
 
 ### Primary Outputs
 - **`execution-report.html`**: The interactive web UI for developers. Self-contained with the initial data snapshot.
@@ -387,7 +397,7 @@ See `docs/jsonp-live-updates.md` for implementation details and gotchas.
 If you have a saved `execution-report.json` file and want to regenerate the HTML UI (e.g., after updating the template or changing themes):
 
 ```bash
-java -jar ${PATH_TO_AGENT_JAR} --data=target/site/execution-report.json --output=target/site/new-report.html
+java -jar ${PATH_TO_AGENT_JAR} --data=target/site/jvm-hotpath/execution-report.json --output=target/site/jvm-hotpath/new-report.html
 ```
 
 ## Development

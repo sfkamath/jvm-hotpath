@@ -4,9 +4,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +21,7 @@ class ReportGeneratorTest {
   @BeforeEach
   void setUp() {
     ExecutionCountStore.reset();
+    ReportGenerator.resetReportLocationLogForTests();
   }
 
   @Test
@@ -208,6 +215,61 @@ class ReportGeneratorTest {
     assertEquals("other", data.get(0).getProject());
 
     deleteRecursive(root.toFile());
+  }
+
+  @Test
+  void testReportLocationLogUsesFileUriAndPrintsOnce() throws IOException {
+    Path outputDir = Files.createTempDirectory("report-log");
+    Path sourceRoot = Files.createTempDirectory("source-root");
+    Path javaFile = sourceRoot.resolve("Sample.java");
+    Files.writeString(javaFile, "public class Sample {}", StandardCharsets.UTF_8);
+
+    Logger logger = Logger.getLogger(ReportGenerator.class.getName());
+    Level previousLevel = logger.getLevel();
+    List<String> messages = new ArrayList<>();
+    Handler handler =
+        new Handler() {
+          @Override
+          public void publish(LogRecord record) {
+            if (record != null && record.getMessage() != null) {
+              messages.add(record.getMessage());
+            }
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {}
+        };
+
+    try {
+      logger.setLevel(Level.INFO);
+      logger.addHandler(handler);
+
+      String reportPath = outputDir.resolve("report.html").toString();
+      ReportGenerator.generateHtmlReport(reportPath, sourceRoot.toString(), false);
+      ReportGenerator.generateHtmlReport(reportPath, sourceRoot.toString(), false);
+
+      long reportWrittenMessages =
+          messages.stream().filter(m -> m.startsWith("Report written to: ")).count();
+      assertEquals(1, reportWrittenMessages);
+
+      String reportUri =
+          messages.stream()
+              .filter(m -> m.startsWith("Report written to: "))
+              .findFirst()
+              .orElseThrow()
+              .substring("Report written to: ".length());
+
+      assertTrue(reportUri.startsWith("file:///"), "Expected a file URI: " + reportUri);
+      assertFalse(reportUri.startsWith("file:////"), "URI has an extra slash: " + reportUri);
+    } finally {
+      logger.removeHandler(handler);
+      logger.setLevel(previousLevel);
+      deleteRecursive(outputDir.toFile());
+      deleteRecursive(sourceRoot.toFile());
+    }
   }
 
   private void deleteRecursive(File file) {

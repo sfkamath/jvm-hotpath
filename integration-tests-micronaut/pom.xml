@@ -49,6 +49,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>jakarta.annotation</groupId>
             <artifactId>jakarta.annotation-api</artifactId>
             <version>2.1.1</version>
@@ -84,8 +90,9 @@
                 </executions>
                 <configuration>
                     <packages>io.github.sfkamath.jvmhotpath.sample.micronaut</packages>
-                    <flushInterval>1</flushInterval>
-                    <verbose>true</verbose>
+                    <flushInterval>0</flushInterval>
+                    <verbose>false</verbose>
+                    <mainClass>io.github.sfkamath.jvmhotpath.sample.micronaut.MainClassProbe</mainClass>
                 </configuration>
             </plugin>
             <plugin>
