@@ -234,9 +234,7 @@ public class PrepareAgentMojo extends AbstractMojo {
 
   private void populateExecMainClass() {
     String existingExecMainClass =
-        firstNonBlank(
-            readProperty("exec.mainClass"),
-            System.getProperty("exec.mainClass"));
+        firstNonBlank(readProperty("exec.mainClass"), System.getProperty("exec.mainClass"));
     if (existingExecMainClass != null) {
       project.getProperties().setProperty("exec.mainClass", existingExecMainClass);
       return;
@@ -267,9 +265,7 @@ public class PrepareAgentMojo extends AbstractMojo {
     }
 
     String execMainClass =
-        firstNonBlank(
-            readProperty("exec.mainClass"),
-            System.getProperty("exec.mainClass"));
+        firstNonBlank(readProperty("exec.mainClass"), System.getProperty("exec.mainClass"));
     if (execMainClass != null) {
       return;
     }

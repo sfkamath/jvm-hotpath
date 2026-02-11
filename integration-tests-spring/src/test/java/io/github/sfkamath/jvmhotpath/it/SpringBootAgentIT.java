@@ -1,9 +1,11 @@
 package io.github.sfkamath.jvmhotpath.it;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.sfkamath.jvmhotpath.ReportGenerator;
 import io.github.sfkamath.jvmhotpath.sample.SampleApp;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.regex.Matcher;
@@ -26,6 +28,8 @@ class SpringBootAgentIT {
 
   @Test
   void testAgentInstrumentsSpringBootApp() throws Exception {
+    assumeTrue(hasJvmHotpathAgentAttached());
+
     // 1. Call the REST endpoint several times
     for (int i = 0; i < 50; i++) {
       String response =
@@ -53,7 +57,9 @@ class SpringBootAgentIT {
   private static long maxCountForFile(String json, String fileName) {
     Pattern filePattern =
         Pattern.compile(
-            "\"path\"\\s*:\\s*\"[^\"]*" + Pattern.quote(fileName) + "\".*?\"counts\"\\s*:\\s*\\{(.*?)\\}",
+            "\"path\"\\s*:\\s*\"[^\"]*"
+                + Pattern.quote(fileName)
+                + "\".*?\"counts\"\\s*:\\s*\\{(.*?)\\}",
             Pattern.DOTALL);
     Matcher fileMatcher = filePattern.matcher(json);
     long max = -1;
@@ -68,5 +74,10 @@ class SpringBootAgentIT {
       }
     }
     return max;
+  }
+
+  private static boolean hasJvmHotpathAgentAttached() {
+    return ManagementFactory.getRuntimeMXBean().getInputArguments().stream()
+        .anyMatch(arg -> arg.startsWith("-javaagent:") && arg.contains("jvm-hotpath"));
   }
 }

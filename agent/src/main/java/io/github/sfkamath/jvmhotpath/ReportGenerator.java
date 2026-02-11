@@ -313,7 +313,8 @@ public final class ReportGenerator {
     if (!Files.isRegularFile(path)) {
       return false;
     }
-    String name = path.getFileName() == null ? "" : path.getFileName().toString().toLowerCase(Locale.ROOT);
+    Path fileName = path.getFileName();
+    String name = fileName == null ? "" : fileName.toString().toLowerCase(Locale.ROOT);
     return name.endsWith(".jar") || name.endsWith(".zip");
   }
 
@@ -322,7 +323,8 @@ public final class ReportGenerator {
       return "unknown";
     }
     if (Files.isRegularFile(root)) {
-      String name = root.getFileName() == null ? root.toString() : root.getFileName().toString();
+      Path fileName = root.getFileName();
+      String name = fileName == null ? root.toString() : fileName.toString();
       String lower = name.toLowerCase(Locale.ROOT);
       if (lower.endsWith(".jar") || lower.endsWith(".zip")) {
         name = name.substring(0, name.length() - 4);

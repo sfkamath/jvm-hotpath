@@ -311,7 +311,8 @@ class ReportGeneratorTest {
     file.delete();
   }
 
-  private void writeSourceArchive(Path archive, String entryPath, String content) throws IOException {
+  private void writeSourceArchive(Path archive, String entryPath, String content)
+      throws IOException {
     try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(archive))) {
       ZipEntry entry = new ZipEntry(entryPath);
       zip.putNextEntry(entry);

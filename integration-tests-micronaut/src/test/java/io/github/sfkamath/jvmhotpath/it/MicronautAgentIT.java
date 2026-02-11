@@ -2,6 +2,7 @@ package io.github.sfkamath.jvmhotpath.it;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.sfkamath.jvmhotpath.ReportGenerator;
 import io.micronaut.http.client.HttpClient;
@@ -9,6 +10,7 @@ import io.micronaut.http.client.annotation.Client;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.regex.Matcher;
@@ -26,6 +28,8 @@ class MicronautAgentIT {
 
   @Test
   void testAgentInstrumentsMicronautApp() throws Exception {
+    assumeTrue(hasJvmHotpathAgentAttached());
+
     // 1. Call the REST endpoint several times
     for (int i = 0; i < 50; i++) {
       String response = client.toBlocking().retrieve("/hello");
@@ -62,7 +66,9 @@ class MicronautAgentIT {
   private static long maxCountForFile(String json, String fileName) {
     Pattern filePattern =
         Pattern.compile(
-            "\"path\"\\s*:\\s*\"[^\"]*" + Pattern.quote(fileName) + "\".*?\"counts\"\\s*:\\s*\\{(.*?)\\}",
+            "\"path\"\\s*:\\s*\"[^\"]*"
+                + Pattern.quote(fileName)
+                + "\".*?\"counts\"\\s*:\\s*\\{(.*?)\\}",
             Pattern.DOTALL);
     Matcher fileMatcher = filePattern.matcher(json);
     long max = -1;
@@ -77,5 +83,10 @@ class MicronautAgentIT {
       }
     }
     return max;
+  }
+
+  private static boolean hasJvmHotpathAgentAttached() {
+    return ManagementFactory.getRuntimeMXBean().getInputArguments().stream()
+        .anyMatch(arg -> arg.startsWith("-javaagent:") && arg.contains("jvm-hotpath"));
   }
 }
