@@ -84,8 +84,9 @@
                 </executions>
                 <configuration>
                     <packages>io.github.sfkamath.jvmhotpath.sample.micronaut</packages>
-                    <flushInterval>1</flushInterval>
-                    <verbose>true</verbose>
+                    <flushInterval>0</flushInterval>
+                    <verbose>false</verbose>
+                    <mainClass>io.github.sfkamath.jvmhotpath.sample.micronaut.MainClassProbe</mainClass>
                 </configuration>
             </plugin>
             <plugin>

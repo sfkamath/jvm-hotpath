@@ -7,14 +7,14 @@ const projectRoot = path.resolve(process.cwd(), '../../');
 const reports = [
   {
     name: 'Spring',
-    htmlPath: path.join(projectRoot, 'integration-tests-spring/target/execution-report.html'),
-    jsonPath: path.join(projectRoot, 'integration-tests-spring/target/execution-report.json'),
+    htmlPath: path.join(projectRoot, 'integration-tests-spring/target/site/jvm-hotpath/execution-report.html'),
+    jsonPath: path.join(projectRoot, 'integration-tests-spring/target/site/jvm-hotpath/execution-report.json'),
     folderPath: 'io/github/sfkamath/jvmhotpath/sample'
   },
   {
     name: 'Micronaut',
-    htmlPath: path.join(projectRoot, 'integration-tests-micronaut/target/execution-report.html'),
-    jsonPath: path.join(projectRoot, 'integration-tests-micronaut/target/execution-report.json'),
+    htmlPath: path.join(projectRoot, 'integration-tests-micronaut/target/site/jvm-hotpath/execution-report.html'),
+    jsonPath: path.join(projectRoot, 'integration-tests-micronaut/target/site/jvm-hotpath/execution-report.json'),
     folderPath: 'io/github/sfkamath/jvmhotpath/sample/micronaut'
   }
 ];
@@ -66,31 +66,34 @@ test.describe('Folder totals', () => {
         segments.slice(-1).join('.')
       ].filter(Boolean);
 
-      let folderNode = page.locator('.tree-node-wrapper.is-folder', {
-        has: page.locator('css=:scope > .tree-item [data-testid="node-name"]', {
-          hasText: new RegExp(`^${escapeRegExp(candidates[0])}$`)
-        })
-      });
-
-      let found = false;
-      for (const name of candidates) {
-        const candidate = page.locator('.tree-node-wrapper.is-folder', {
-          has: page.locator('css=:scope > .tree-item [data-testid="node-name"]', {
-            hasText: new RegExp(`^${escapeRegExp(name)}$`)
-          })
-        });
-        if ((await candidate.count()) > 0) {
-          folderNode = candidate;
-          found = true;
-          break;
+      const expectedText = formatCount(expectedTotal);
+      const findMatchingFolder = async () => {
+        for (const name of candidates) {
+          const rows = page.locator('.tree-item[data-testid="tree-folder"]', {
+            has: page.locator('[data-testid="node-name"]', {
+              hasText: new RegExp(`^${escapeRegExp(name)}$`)
+            })
+          });
+          const rowCount = await rows.count();
+          for (let i = 0; i < rowCount; i++) {
+            const row = rows.nth(i);
+            const badge = row.locator('[data-testid="node-count"]').first();
+            const text = ((await badge.textContent()) || '').trim();
+            if (text === expectedText) {
+              return row;
+            }
+          }
         }
-      }
+        return null;
+      };
 
-      expect(found).toBe(true);
+      await expect.poll(async () => (await findMatchingFolder()) !== null, { timeout: 15000 }).toBe(true);
+      const folderNode = await findMatchingFolder();
+      expect(folderNode).not.toBeNull();
 
-      const countBadge = folderNode.locator('css=:scope > .tree-item [data-testid="node-count"]').first();
+      const countBadge = folderNode!.locator('[data-testid="node-count"]').first();
       await expect(countBadge).toBeVisible();
-      await expect(countBadge).toHaveText(formatCount(expectedTotal));
+      await expect(countBadge).toHaveText(expectedText);
     });
   }
 });

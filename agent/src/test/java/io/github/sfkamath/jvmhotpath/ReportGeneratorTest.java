@@ -4,9 +4,17 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +23,7 @@ class ReportGeneratorTest {
   @BeforeEach
   void setUp() {
     ExecutionCountStore.reset();
+    ReportGenerator.resetReportLocationLogForTests();
   }
 
   @Test
@@ -210,6 +219,88 @@ class ReportGeneratorTest {
     deleteRecursive(root.toFile());
   }
 
+  @Test
+  void testCollectDataWithSourceArchive() throws Exception {
+    Path tempDir = Files.createTempDirectory("archive-root");
+    Path sourceArchive = tempDir.resolve("shared-library-sources.jar");
+    try {
+      writeSourceArchive(
+          sourceArchive, "com/example/shared/SharedService.java", "class SharedService {}");
+
+      ExecutionCountStore.recordExecution("com.example.shared.SharedService", 42);
+
+      List<ReportGenerator.FileData> data =
+          ReportGenerator.collectData(sourceArchive.toString(), false);
+
+      ReportGenerator.FileData sharedFile =
+          data.stream()
+              .filter(f -> "com/example/shared/SharedService.java".equals(f.getPath()))
+              .findFirst()
+              .orElseThrow();
+
+      assertTrue(sharedFile.getContent().contains("SharedService"));
+      assertEquals(1L, sharedFile.getCounts().get(42));
+      assertEquals("shared-library", sharedFile.getProject());
+    } finally {
+      deleteRecursive(tempDir.toFile());
+    }
+  }
+
+  @Test
+  void testReportLocationLogUsesFileUriAndPrintsOnce() throws IOException {
+    Path outputDir = Files.createTempDirectory("report-log");
+    Path sourceRoot = Files.createTempDirectory("source-root");
+    Path javaFile = sourceRoot.resolve("Sample.java");
+    Files.writeString(javaFile, "public class Sample {}", StandardCharsets.UTF_8);
+
+    Logger logger = Logger.getLogger(ReportGenerator.class.getName());
+    Level previousLevel = logger.getLevel();
+    List<String> messages = new ArrayList<>();
+    Handler handler =
+        new Handler() {
+          @Override
+          public void publish(LogRecord record) {
+            if (record != null && record.getMessage() != null) {
+              messages.add(record.getMessage());
+            }
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {}
+        };
+
+    try {
+      logger.setLevel(Level.INFO);
+      logger.addHandler(handler);
+
+      String reportPath = outputDir.resolve("report.html").toString();
+      ReportGenerator.generateHtmlReport(reportPath, sourceRoot.toString(), false);
+      ReportGenerator.generateHtmlReport(reportPath, sourceRoot.toString(), false);
+
+      long reportWrittenMessages =
+          messages.stream().filter(m -> m.startsWith("Report written to: ")).count();
+      assertEquals(1, reportWrittenMessages);
+
+      String reportUri =
+          messages.stream()
+              .filter(m -> m.startsWith("Report written to: "))
+              .findFirst()
+              .orElseThrow()
+              .substring("Report written to: ".length());
+
+      assertTrue(reportUri.startsWith("file:///"), "Expected a file URI: " + reportUri);
+      assertFalse(reportUri.startsWith("file:////"), "URI has an extra slash: " + reportUri);
+    } finally {
+      logger.removeHandler(handler);
+      logger.setLevel(previousLevel);
+      deleteRecursive(outputDir.toFile());
+      deleteRecursive(sourceRoot.toFile());
+    }
+  }
+
   private void deleteRecursive(File file) {
     File[] children = file.listFiles();
     if (children != null) {
@@ -218,5 +309,15 @@ class ReportGeneratorTest {
       }
     }
     file.delete();
+  }
+
+  private void writeSourceArchive(Path archive, String entryPath, String content)
+      throws IOException {
+    try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(archive))) {
+      ZipEntry entry = new ZipEntry(entryPath);
+      zip.putNextEntry(entry);
+      zip.write(content.getBytes(StandardCharsets.UTF_8));
+      zip.closeEntry();
+    }
   }
 }

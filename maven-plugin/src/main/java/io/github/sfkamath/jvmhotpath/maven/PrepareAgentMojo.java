@@ -3,8 +3,10 @@ package io.github.sfkamath.jvmhotpath.maven;
 import java.io.File;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import org.apache.maven.artifact.Artifact;
+import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Component;
@@ -40,6 +42,9 @@ public class PrepareAgentMojo extends AbstractMojo {
   @Parameter(defaultValue = "${project.remoteProjectRepositories}", readonly = true)
   private List<RemoteRepository> remoteRepos;
 
+  @Parameter(defaultValue = "${session}", readonly = true)
+  private MavenSession session;
+
   /**
    * Comma-separated list of additional packages to instrument. These are appended to the default
    * (project groupId).
@@ -58,7 +63,7 @@ public class PrepareAgentMojo extends AbstractMojo {
   /** Path to the generated HTML report. */
   @Parameter(
       property = "jvm-hotpath.output",
-      defaultValue = "${project.build.directory}/execution-report.html")
+      defaultValue = "${project.build.directory}/site/jvm-hotpath/execution-report.html")
   private File output;
 
   /** Additional source paths. These are appended to the project's compile source roots. */
@@ -75,6 +80,13 @@ public class PrepareAgentMojo extends AbstractMojo {
   /** Name of the property to set. Default is "argLine" (used by Surefire/Failsafe). */
   @Parameter(property = "jvm-hotpath.propertyName", defaultValue = "argLine")
   private String propertyName;
+
+  /**
+   * Optional main class hint for exec-maven-plugin users. If unset, the plugin attempts to infer
+   * `exec.mainClass` from common property names.
+   */
+  @Parameter(property = "jvm-hotpath.mainClass")
+  private String mainClass;
 
   @Parameter(property = "jvm-hotpath.skip", defaultValue = "false")
   private boolean skip;
@@ -209,6 +221,8 @@ public class PrepareAgentMojo extends AbstractMojo {
     }
 
     project.getProperties().setProperty(propertyName, agentString);
+    populateExecMainClass();
+    validateExecMainClassIfNeeded();
     getLog().info("JVM Hotpath configured.");
     getLog().info("Agent String: " + agentString);
     if (verbose) {
@@ -216,6 +230,114 @@ public class PrepareAgentMojo extends AbstractMojo {
       getLog().info("Sourcepath: " + finalSourcepath);
     }
     getLog().debug("Set " + propertyName + " to: " + agentString);
+  }
+
+  private void populateExecMainClass() {
+    String existingExecMainClass =
+        firstNonBlank(readProperty("exec.mainClass"), System.getProperty("exec.mainClass"));
+    if (existingExecMainClass != null) {
+      project.getProperties().setProperty("exec.mainClass", existingExecMainClass);
+      return;
+    }
+
+    String inferredMainClass =
+        firstNonBlank(
+            resolveMainClassHint(),
+            readProperty("main.class"),
+            readProperty("mainClass"),
+            readProperty("start-class"),
+            readProperty("spring-boot.run.main-class"));
+
+    if (inferredMainClass != null) {
+      project.getProperties().setProperty("exec.mainClass", inferredMainClass);
+      getLog().info("Inferred exec.mainClass: " + inferredMainClass);
+    } else {
+      getLog()
+          .debug(
+              "No main class inferred. Set -Dexec.mainClass=... or define one of: "
+                  + "jvm-hotpath.mainClass, main.class, mainClass, start-class.");
+    }
+  }
+
+  private void validateExecMainClassIfNeeded() throws MojoExecutionException {
+    if (!isExecGoalRequested()) {
+      return;
+    }
+
+    String execMainClass =
+        firstNonBlank(readProperty("exec.mainClass"), System.getProperty("exec.mainClass"));
+    if (execMainClass != null) {
+      return;
+    }
+
+    throw new MojoExecutionException(
+        "Could not determine exec.mainClass for exec:exec. Set one of: "
+            + "-Dexec.mainClass=..., -Djvm-hotpath.mainClass=..., or <mainClass> in "
+            + "jvm-hotpath-maven-plugin configuration.");
+  }
+
+  private boolean isExecGoalRequested() {
+    if (session == null || session.getGoals() == null) {
+      return false;
+    }
+
+    for (String goal : session.getGoals()) {
+      if (goal == null) {
+        continue;
+      }
+      String normalized = goal.trim().toLowerCase(Locale.ROOT);
+      if (normalized.isEmpty()) {
+        continue;
+      }
+      if ("exec:exec".equals(normalized)) {
+        return true;
+      }
+      if (normalized.endsWith(":exec")
+          && (normalized.startsWith("exec:") || normalized.contains("exec-maven-plugin"))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private String resolveMainClassHint() {
+    if (session != null
+        && session.getUserProperties() != null
+        && session.getUserProperties().containsKey("jvm-hotpath.mainClass")) {
+      String raw = session.getUserProperties().getProperty("jvm-hotpath.mainClass");
+      return raw == null ? "" : raw.trim();
+    }
+    return mainClass;
+  }
+
+  private String readProperty(String key) {
+    if (key == null || key.trim().isEmpty()) {
+      return null;
+    }
+
+    String fromUser =
+        session == null || session.getUserProperties() == null
+            ? null
+            : session.getUserProperties().getProperty(key);
+    String fromProject =
+        project == null || project.getProperties() == null
+            ? null
+            : project.getProperties().getProperty(key);
+    String fromSystem = System.getProperty(key);
+
+    return firstNonBlank(fromUser, fromProject, fromSystem);
+  }
+
+  private String firstNonBlank(String... candidates) {
+    if (candidates == null) {
+      return null;
+    }
+    for (String candidate : candidates) {
+      if (candidate != null && !candidate.trim().isEmpty()) {
+        return candidate.trim();
+      }
+    }
+    return null;
   }
 
   private void resolveDependencySources(Set<String> sourcePathList) {

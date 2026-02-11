@@ -5,11 +5,11 @@ const projectRoot = path.resolve(process.cwd(), '../../');
 const reports = [
   {
     name: 'Spring',
-    path: path.join(projectRoot, 'integration-tests-spring/target/execution-report.html')
+    path: path.join(projectRoot, 'integration-tests-spring/target/site/jvm-hotpath/execution-report.html')
   },
   {
     name: 'Micronaut',
-    path: path.join(projectRoot, 'integration-tests-micronaut/target/execution-report.html')
+    path: path.join(projectRoot, 'integration-tests-micronaut/target/site/jvm-hotpath/execution-report.html')
   }
 ];
 

@@ -21,7 +21,7 @@ public final class ExecutionCounterAgent {
 
   private String[] includePackages = new String[0];
   private String[] excludePackages = new String[0];
-  private String outputFile = "execution-report.html";
+  private String outputFile = "target/site/jvm-hotpath/execution-report.html";
   private String sourcePath = "";
   private int flushInterval;
   private boolean verbose;
@@ -35,7 +35,7 @@ public final class ExecutionCounterAgent {
     }
 
     String dataPath = null;
-    String outputPath = "execution-report.html";
+    String outputPath = "target/site/jvm-hotpath/execution-report.html";
 
     for (String arg : args) {
       if (arg.startsWith("--data=")) {
@@ -193,7 +193,7 @@ public final class ExecutionCounterAgent {
           break;
         default:
           if (verbose) {
-            logger.log(Level.FINE, "Unknown agent argument: {0}={1}", new Object[] {key, value});
+            logger.log(Level.FINE, "Unknown agent argument: {0}={1}", new Object[]{key, value});
           }
           break;
       }

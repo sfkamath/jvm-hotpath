@@ -17,16 +17,16 @@ A Java agent that instruments classes at runtime to record and visualize line-le
 - **Bytecode Instrumentation**: Automatically injects counting logic into target methods using ASM.
 - **Frequency Analysis**: Tracks exactly how many times each line executes, rather than just "if" it was hit.
 - **Modern UI**: Interactive report built with Vue.js 3 and PrismJS.
-- **Live Updates**: Supports "serverless" real-time updates via JSONP, allowing you to watch counts increase while the app runs (even when opening the report as a local file).
+- **Live Updates**: Uses JSONP + polling for "serverless" real-time updates, so you can watch counts increase while the app runs (even from `file://`).
 - **Global Heatmap**: Consistent coloring across all source files based on the project-wide maximum execution count.
 - **Activity Highlighting**: Visual "flash" indicators in the file tree when counts for a specific file increase.
 - **Standalone Mode**: Regenerate the HTML report from saved JSON data without re-running the application.
 
 ## Motivation
 
-JVM Hotpath is **not a coverage tool**. Traditional coverage tools (JaCoCo, OpenClover, JCov) focus on a binary question: "*Was this line executed during tests?*". This is critical for quality metrics but useless for understanding **runtime behavior** and **hot-path analysis**.
+JVM Hotpath is **not a coverage tool**. Coverage tools (e.g., JaCoCo, OpenClover, JCov) are designed around coverage (did it execute), not frequency (how many times did it execute). That's critical for quality metrics, but limited for understanding **runtime behavior** and **hot-path analysis**.
 
-JVM Hotpath focus on frequency: "*How many times does this line execute in a real-world workload?*"
+JVM Hotpath focuses on frequency: "*How many times does this line execute in a real-world workload?*"
 
 See [docs/Motivation.md](docs/Motivation.md) for a more detailed deep-dive into the goals and architectural choices of this project.
 
@@ -45,7 +45,7 @@ This tool was born during a high-velocity "vibe coding" session where I was refa
 Standard profilers missed the following bug because the system didn't *feel* slow yet, but the logic was fundamentally broken:
 
 **The Bug:** A logic check (e.g., `isValid()`) was being called 19 million times in 15 seconds.  
-**The Problem:** Each call was ~50 nanoseconds - too fast for sampling profilers to notice.  
+**The Problem:** Each call was ~50 nanoseconds - easy for sampling profilers to under-sample.  
 **The Impact:** Algorithmic complexity (O(N) instead of O(1)) was killing performance.
 
 Standard profilers showed the method as "not hot" because the CPU wasn't stuck there. But 19 million calls × 50ns = 950ms of wasted time hidden in plain sight.
@@ -55,7 +55,7 @@ Standard profilers showed the method as "not hot" because the CPU wasn't stuck t
 | Tool Type | What It Shows | What It Misses |
 |-----------|---------------|----------------|
 | **Sampling Profilers**<br/>(VisualVM, JFR) | CPU-intensive methods | Fast methods called millions of times |
-| **Commercial Profilers**<br/>(JProfiler, YourKit) | Timing with nanosecond precision | Usability (10x-50x overhead, heavy GUIs) |
+| **Commercial Profilers**<br/>(JProfiler, YourKit) | Deep timing and call tracing | Always-on convenience (heavier workflow, and instrumentation/tracing can add noticeable overhead) |
 | **APM Tools**<br/>(Datadog, New Relic) | Request/span-level metrics | Line-level logic errors |
 
 ### The Key Insight: Frequency ≠ Duration
@@ -67,7 +67,7 @@ In modern Java:
 - JIT compilation makes methods fast
 - The bottleneck is often algorithmic (O(N) vs O(1))
 - Logic errors create millions of unnecessary calls
-- Each call is too fast to show up in sampling
+- Sampling profilers are statistical: they do not provide exact invocation counts, and very short "fast but frequent" work can be under-sampled
 
 **Example:**
 ```
@@ -93,7 +93,7 @@ When you see "Line 42: executed 19 million times" in a 15-second run, you don't 
 
 ## Requirements
 
-- **Java:** 11 or higher (verified on 11, 17, 21, 23; supports 24)
+- **Java:** 11 or higher (tested in CI on 11, 17, 21, 23, and 24)
 - **Build Tool:** Maven 3.6+ or Gradle 7.0+
 
 The agent is compiled to Java 11 bytecode for maximum compatibility. Support for Java 25 is currently a hard limit (see Development section).
@@ -106,7 +106,7 @@ To build the agent JAR (shaded with all dependencies):
 mvn clean package -DskipTests
 ```
 
-The resulting JAR will be at `target/jvm-hotpath-agent-0.2.0.jar`.
+The resulting JAR will be at `target/jvm-hotpath-agent-0.2.1.jar`.
 
 > **Frontend build:** The report UI lives in `report-ui/` and is bundled via Vite. `mvn clean package` runs `frontend-maven-plugin` to execute `npm install`/`npm run build` inside that folder before packaging, producing a browser-safe `report-app.js` (IIFE bundle). When iterating on the UI you can run `npm install && npm run build` manually from `report-ui/` to refresh the bundled asset.
 
@@ -123,7 +123,7 @@ Add this to your `pom.xml`:
     <groupId>io.github.sfkamath</groupId>
     <artifactId>jvm-hotpath-maven-plugin</artifactId>
     <!-- Use the latest version from the Maven Central badge at the top of this file -->
-    <version>0.2.0</version>
+    <version>0.2.1</version>
     <executions>
         <execution>
             <goals>
@@ -161,7 +161,7 @@ Add this to your `pom.xml`:
     <groupId>io.github.sfkamath</groupId>
     <artifactId>jvm-hotpath-maven-plugin</artifactId>
     <!-- Use the latest version from the Maven Central badge at the top of this file -->
-    <version>0.2.0</version>
+    <version>0.2.1</version>
     <executions>
         <execution>
             <goals>
@@ -180,7 +180,7 @@ Then run your tests:
 ```bash
 mvn verify
 ```
-The report will be generated at `target/site/execution-report.html`.
+The report will be generated at `target/site/jvm-hotpath/execution-report.html`.
 
 #### Multi-source invocation
 
@@ -229,7 +229,7 @@ Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
                 <!-- Use the latest version from the Maven Central badge at the top of this file -->
-                <version>0.2.0</version>
+                <version>0.2.1</version>
                 <executions>
                     <execution>
                         <goals><goal>prepare-agent</goal></goals>
@@ -237,6 +237,10 @@ Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
                 </executions>
                 <configuration>
                     <flushInterval>5</flushInterval>
+                    <!-- Optional: include dependency sources via source archive -->
+                    <sourcepath>${user.home}/.m2/repository/com/example/shared-library/1.0.0/shared-library-1.0.0-sources.jar</sourcepath>
+                    <!-- Optional but recommended to avoid -Dexec.mainClass on every run -->
+                    <mainClass>com.example.Main</mainClass>
                 </configuration>
             </plugin>
             <plugin>
@@ -256,8 +260,15 @@ Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
 
 Then run (ensure the `instrument` profile is active for prefix resolution):
 ```bash
+mvn jvm-hotpath:prepare-agent exec:exec -Pinstrument
+```
+
+If your project does not define a main class in `pom.xml`, pass it on the CLI:
+```bash
 mvn jvm-hotpath:prepare-agent exec:exec -Pinstrument -Dexec.mainClass="com.example.Main"
 ```
+
+`prepare-agent` populates `exec.mainClass` from (in order): `-Dexec.mainClass`, `jvm-hotpath.mainClass`, `main.class`, `mainClass`, `start-class`, and `spring-boot.run.main-class`.
 
 ### Advanced Configuration
 
@@ -267,11 +278,14 @@ The plugin uses **"Smart Defaults"** but allows additive configuration.
 | :--- | :--- | :--- |
 | `packages` | Packages to instrument. | **Appends** to project's `groupId`. |
 | `sourcepath` | Source roots for the report. | **Appends** to project's `src/main/java`. |
-| `includes` | External dependencies to resolve. | Resolves `sources.jar` for given artifacts. |
+| `mainClass` | Optional main class hint used to populate `exec.mainClass` for `exec:exec`. | **Inferred** from common Maven properties. |
+| `includes` | External dependencies to include. | Resolves dependency source archives and appends them to `sourcepath`. |
+
+You usually do not need to add `src/main/java` manually in `sourcepath`; the plugin appends it automatically.
 
 #### Example: Including External Dependencies
 
-If you want to instrument code from a dependency (and see its source code in the report), configure `includes` in your `pom.xml` to automatically resolve the source JAR from Maven:
+If you want to instrument code from a dependency (and see its source code in the report), configure `includes` in your `pom.xml`. The plugin resolves the dependency source archive from Maven and appends it to `sourcepath`:
 
 ```xml
 <configuration>
@@ -287,13 +301,17 @@ If you want to instrument code from a dependency (and see its source code in the
 ```
 
 **Via Command Line:**
-You can achieve the same by pointing `sourcepath` directly to a sources JAR in your local repository:
+You can achieve the same by setting dependency packages directly and pointing `sourcepath` at source roots (directories and/or source archives):
 
 ```bash
 mvn verify \
   -Djvm-hotpath.packages=com.example.shared \
   -Djvm-hotpath.sourcepath=$HOME/.m2/repository/com/example/shared-library/1.0.0/shared-library-1.0.0-sources.jar
 ```
+
+> **Note:** `sourcepath` accepts directories and source archives (`.jar`/`.zip`).
+>
+> **Version matching:** If you provide dependency source archives manually via `sourcepath`, use the same version as the runtime dependency to keep line mapping accurate. Prefer `includes` when possible so sources are resolved automatically.
 
 ### Manual Agent Usage
 
@@ -303,22 +321,22 @@ If you prefer not to use the plugin, you can attach the agent manually.
 ```bash
 mvn clean package -DskipTests
 ```
-The JAR will be located at `agent/target/jvm-hotpath-agent-0.2.0.jar`.
+The JAR will be located at `agent/target/jvm-hotpath-agent-0.2.1.jar`.
 
 **Run with Agent:**
 
 ```bash
-java -javaagent:${PATH_TO_AGENT_JAR}=packages=com.example,sourcepath=src/main/java,flushInterval=5,output=target/site/execution-report.html -jar your-app.jar
+java -javaagent:${PATH_TO_AGENT_JAR}=packages=com.example,sourcepath=src/main/java,flushInterval=5,output=target/site/jvm-hotpath/execution-report.html -jar your-app.jar
 ```
 
 #### Multi-source invocation
 
-When the instrumented application depends on multiple modules or libraries, repeat the `packages`/`sourcepath` values in a single agent argument string. Each `packages` entry should map to one of the supplied source roots (hand-written or generated) so the UI can show them under the correct project; mix generated-source directories (`target/generated-sources`) etc. with the corresponding `src/main/java` roots as needed. Package lists stay comma-separated, while source roots are joined with the platform-specific `Path.pathSeparator` (`:` on macOS/Linux, `;` on Windows). Example structure:
+When the instrumented application depends on multiple modules or libraries, repeat the `packages`/`sourcepath` values in a single agent argument string. Each `packages` entry should map to one of the supplied source roots (hand-written or generated) so the UI can show them under the correct project; mix generated-source directories (`target/generated-sources`) etc. with the corresponding `src/main/java` roots as needed. Package lists stay comma-separated, while source roots are joined with the platform-specific `Path.pathSeparator` (`:` on macOS/Linux, `;` on Windows). Source roots can be directories or source archives (`.jar`/`.zip`). Example structure:
 
 ```bash
 java -javaagent:${PATH_TO_AGENT_JAR}=packages=com.example,com.other.module,\ 
     flushInterval=5,\ 
-    output=target/site/execution-report.html,\ 
+    output=target/site/jvm-hotpath/execution-report.html,\ 
     sourcepath=module-a/src/main/java:module-a/target/generated-sources:module-b/src/main/java,\ 
     -jar your-app.jar
 ```
@@ -340,21 +358,21 @@ module-b
 | `packages` | Comma-separated list of packages to instrument (e.g., `com.myapp`). | (none) |
 | `exclude` | Comma-separated list of packages/classes to explicitly skip. | (none) |
 | `flushInterval` | Interval in seconds to regenerate the report while the app is running. | 0 (no auto-flush) |
-| `output` | Path to the generated HTML report. | `target/site/execution-report.html` |
-| `sourcepath` | Path to the root of the Java source files for code overlay. | (none) |
-| `verbose` | If `true`, prints instrumentation details and flush success messages (with clickable file URLs) to stdout. | `false` |
+| `output` | Path to the generated HTML report. | `target/site/jvm-hotpath/execution-report.html` |
+| `sourcepath` | Path(s) to source roots for code overlay (directories or source archives). | (none) |
+| `verbose` | If `true`, prints instrumentation details and periodic flush messages. | `false` |
 | `keepAlive` | Keep the JVM alive via a heartbeat thread (useful for scheduled apps without a server). | `true` |
 
 ## Viewing the Report
 
-1.  Open the generated `target/site/execution-report.html` file in any modern web browser.
+1.  Open the generated `target/site/jvm-hotpath/execution-report.html` file in any modern web browser.
 2.  If `flushInterval` is set, the report will automatically poll for updates from a sibling `execution-report.js` file.
 3.  **No Web Server Required**: Thanks to the JSONP implementation, live updates work even when the file is opened directly from disk (`file://` protocol).
 4.  If you open the report from disk and nothing renders, hard-refresh once (the `report-app.js` bundle is copied alongside the report and may be cached).
 
 ## Report Artifacts
 
-The agent produces both human-readable and machine-readable output in the `target/site/` directory:
+The agent produces both human-readable and machine-readable output in the `target/site/jvm-hotpath/` directory:
 
 ### Primary Outputs
 - **`execution-report.html`**: The interactive web UI for developers. Self-contained with the initial data snapshot.
@@ -387,7 +405,7 @@ See `docs/jsonp-live-updates.md` for implementation details and gotchas.
 If you have a saved `execution-report.json` file and want to regenerate the HTML UI (e.g., after updating the template or changing themes):
 
 ```bash
-java -jar ${PATH_TO_AGENT_JAR} --data=target/site/execution-report.json --output=target/site/new-report.html
+java -jar ${PATH_TO_AGENT_JAR} --data=target/site/jvm-hotpath/execution-report.json --output=target/site/jvm-hotpath/new-report.html
 ```
 
 ## Development

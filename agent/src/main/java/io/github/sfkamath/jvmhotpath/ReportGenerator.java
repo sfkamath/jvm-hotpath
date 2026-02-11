@@ -12,20 +12,26 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 /** Generates HTML report showing execution counts per line using a Vue.js template. */
 public final class ReportGenerator {
 
   private static final Logger logger = Logger.getLogger(ReportGenerator.class.getName());
   private static final ObjectMapper mapper = new ObjectMapper();
+  private static final AtomicBoolean reportLocationLogged = new AtomicBoolean(false);
 
   /** Generates the report from current memory state. */
   public static void generateHtmlReport(String outputPath, String sourcePath, boolean verbose)
@@ -45,13 +51,13 @@ public final class ReportGenerator {
     Files.writeString(paths.jsonpPath, jsonpContent);
 
     // 3. Render HTML (embedded data for initial load)
-    renderReport(payload, paths, verbose);
+    renderReport(payload, paths);
   }
 
   /** Regenerates the report from a saved JSON data file. */
   public static void regenerateReport(String jsonPath, String outputPath) throws IOException {
     ReportPayload payload = readPayload(jsonPath);
-    renderReport(payload, resolveReportPaths(outputPath), true);
+    renderReport(payload, resolveReportPaths(outputPath));
   }
 
   static List<FileData> collectData(String sourcePath, boolean verbose) throws IOException {
@@ -59,24 +65,16 @@ public final class ReportGenerator {
     List<SourceRoot> roots = parseSourceRoots(sourcePath);
     Map<String, FileData> fileDataMap = new HashMap<>();
 
-    // 1. Initialize with all source files from disk (0 counts)
+    // 1. Initialize with all source files from roots (0 counts)
     for (SourceRoot root : roots) {
-      try (Stream<Path> walker = Files.walk(root.path())) {
-        walker
-            .filter(Files::isRegularFile)
-            .filter(p -> p.toString().endsWith(".java"))
-            .forEach(
-                p -> {
-                  String relativePath = root.path().relativize(p).toString().replace('\\', '/');
-                  String content = "";
-                  try {
-                    content = Files.readString(p);
-                  } catch (IOException ignored) {
-                  }
-                  fileDataMap.put(
-                      root.project() + "::" + relativePath,
-                      new FileData(relativePath, new HashMap<>(), content, root.project()));
-                });
+      try {
+        if (root.isArchive()) {
+          collectArchiveSources(root, fileDataMap);
+        } else {
+          collectDirectorySources(root, fileDataMap);
+        }
+      } catch (IOException ignored) {
+        // Skip broken roots and continue checking the remaining ones.
       }
     }
 
@@ -122,8 +120,7 @@ public final class ReportGenerator {
     return fileDataList;
   }
 
-  private static void renderReport(ReportPayload payload, ReportPaths paths, boolean verbose)
-      throws IOException {
+  private static void renderReport(ReportPayload payload, ReportPaths paths) throws IOException {
     String template = loadTemplate();
     if (template == null) {
       logger.severe("Could not load report template.");
@@ -141,10 +138,8 @@ public final class ReportGenerator {
             .replace("/*JSONP_FILE*/", paths.jsonpFileName);
 
     Files.writeString(paths.htmlPath, finalHtml);
-    if (verbose) {
-      logger.info(
-          "Report written to: file:///"
-              + paths.htmlPath.toAbsolutePath().toString().replace("\\", "/"));
+    if (reportLocationLogged.compareAndSet(false, true)) {
+      logger.info("Report written to: " + toFileUri(paths.htmlPath));
     }
 
     copyResource(paths.outputDir, "/io/github/sfkamath/jvmhotpath/report-app.js", "report-app.js");
@@ -160,18 +155,12 @@ public final class ReportGenerator {
     String filename = simpleClassName(className) + ".java";
     for (SourceRoot root : roots) {
       try {
-        Path candidate = root.path().resolve(relativePath);
-        if (Files.exists(candidate)) {
-          return new SourceFile(Files.readString(candidate), root.project());
-        }
-
-        try (Stream<Path> walker = Files.walk(root.path())) {
-          Optional<Path> found =
-              walker.filter(p -> p.getFileName().toString().equals(filename)).findFirst();
-          if (found.isPresent()) {
-            Path located = found.orElseThrow();
-            return new SourceFile(Files.readString(located), root.project());
-          }
+        Optional<String> content =
+            root.isArchive()
+                ? findInArchive(root.path(), relativePath, filename)
+                : findInDirectory(root.path(), relativePath, filename);
+        if (content.isPresent()) {
+          return new SourceFile(content.orElseThrow(), root.project());
         }
       } catch (IOException ignored) {
         // Skip broken roots and continue checking the remaining ones.
@@ -194,16 +183,158 @@ public final class ReportGenerator {
       }
 
       Path path = Path.of(trimmed).toAbsolutePath().normalize();
-      if (Files.exists(path) && Files.isDirectory(path)) {
-        deduplicated.putIfAbsent(path, new SourceRoot(path, deriveProjectName(path)));
+      if (!Files.exists(path)) {
+        continue;
+      }
+
+      if (Files.isDirectory(path)) {
+        deduplicated.putIfAbsent(
+            path, new SourceRoot(path, deriveProjectName(path), SourceRootType.DIRECTORY));
+        continue;
+      }
+
+      if (isArchivePath(path)) {
+        deduplicated.putIfAbsent(
+            path, new SourceRoot(path, deriveProjectName(path), SourceRootType.ARCHIVE));
       }
     }
     return new ArrayList<>(deduplicated.values());
   }
 
+  private static void collectDirectorySources(SourceRoot root, Map<String, FileData> fileDataMap)
+      throws IOException {
+    try (Stream<Path> walker = Files.walk(root.path())) {
+      walker
+          .filter(Files::isRegularFile)
+          .filter(p -> p.toString().endsWith(".java"))
+          .forEach(
+              p -> {
+                String relativePath = root.path().relativize(p).toString().replace('\\', '/');
+                String content = "";
+                try {
+                  content = Files.readString(p);
+                } catch (IOException ignored) {
+                }
+                addSourceFile(fileDataMap, root, relativePath, content);
+              });
+    }
+  }
+
+  private static void collectArchiveSources(SourceRoot root, Map<String, FileData> fileDataMap)
+      throws IOException {
+    try (ZipFile zip = new ZipFile(root.path().toFile())) {
+      Enumeration<? extends ZipEntry> entries = zip.entries();
+      while (entries.hasMoreElements()) {
+        ZipEntry entry = entries.nextElement();
+        if (entry.isDirectory()) {
+          continue;
+        }
+        String relativePath = normalizeArchiveEntryPath(entry.getName());
+        if (!relativePath.endsWith(".java")) {
+          continue;
+        }
+        addSourceFile(fileDataMap, root, relativePath, readArchiveEntry(zip, entry));
+      }
+    }
+  }
+
+  private static void addSourceFile(
+      Map<String, FileData> fileDataMap, SourceRoot root, String relativePath, String content) {
+    fileDataMap.put(
+        root.project() + "::" + relativePath,
+        new FileData(relativePath, new HashMap<>(), content, root.project()));
+  }
+
+  private static Optional<String> findInDirectory(Path root, String relativePath, String filename)
+      throws IOException {
+    Path candidate = root.resolve(relativePath);
+    if (Files.exists(candidate)) {
+      return Optional.of(Files.readString(candidate));
+    }
+
+    try (Stream<Path> walker = Files.walk(root)) {
+      Optional<Path> found =
+          walker
+              .filter(Files::isRegularFile)
+              .filter(p -> filename.equals(p.getFileName().toString()))
+              .findFirst();
+      if (found.isPresent()) {
+        return Optional.of(Files.readString(found.orElseThrow()));
+      }
+    }
+
+    return Optional.empty();
+  }
+
+  private static Optional<String> findInArchive(Path archive, String relativePath, String filename)
+      throws IOException {
+    try (ZipFile zip = new ZipFile(archive.toFile())) {
+      ZipEntry exact = zip.getEntry(normalizeArchiveEntryPath(relativePath));
+      if (exact != null && !exact.isDirectory()) {
+        return Optional.of(readArchiveEntry(zip, exact));
+      }
+
+      Enumeration<? extends ZipEntry> entries = zip.entries();
+      while (entries.hasMoreElements()) {
+        ZipEntry entry = entries.nextElement();
+        if (entry.isDirectory()) {
+          continue;
+        }
+        if (filename.equals(fileName(entry.getName()))) {
+          return Optional.of(readArchiveEntry(zip, entry));
+        }
+      }
+    }
+
+    return Optional.empty();
+  }
+
+  private static String readArchiveEntry(ZipFile zip, ZipEntry entry) throws IOException {
+    try (InputStream in = zip.getInputStream(entry)) {
+      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+    }
+  }
+
+  private static String normalizeArchiveEntryPath(String path) {
+    String normalized = path.replace('\\', '/');
+    while (normalized.startsWith("/")) {
+      normalized = normalized.substring(1);
+    }
+    return normalized;
+  }
+
+  private static String fileName(String path) {
+    String normalized = normalizeArchiveEntryPath(path);
+    int idx = normalized.lastIndexOf('/');
+    return idx >= 0 ? normalized.substring(idx + 1) : normalized;
+  }
+
+  private static boolean isArchivePath(Path path) {
+    if (!Files.isRegularFile(path)) {
+      return false;
+    }
+    Path fileName = path.getFileName();
+    String name = fileName == null ? "" : fileName.toString().toLowerCase(Locale.ROOT);
+    return name.endsWith(".jar") || name.endsWith(".zip");
+  }
+
   private static String deriveProjectName(Path root) {
     if (root == null) {
       return "unknown";
+    }
+    if (Files.isRegularFile(root)) {
+      Path fileName = root.getFileName();
+      String name = fileName == null ? root.toString() : fileName.toString();
+      String lower = name.toLowerCase(Locale.ROOT);
+      if (lower.endsWith(".jar") || lower.endsWith(".zip")) {
+        name = name.substring(0, name.length() - 4);
+      }
+      if (name.endsWith("-sources")) {
+        name = name.substring(0, name.length() - "-sources".length());
+      }
+      if (!name.isBlank()) {
+        return name;
+      }
     }
     String normalized = root.toString().replace('\\', '/');
     String[] segments = normalized.split("/");
@@ -275,7 +406,9 @@ public final class ReportGenerator {
 
   private static ReportPaths resolveReportPaths(String outputPath) {
     String safeOutput =
-        outputPath == null || outputPath.trim().isEmpty() ? "execution-report.html" : outputPath;
+        outputPath == null || outputPath.trim().isEmpty()
+            ? "target/site/jvm-hotpath/execution-report.html"
+            : outputPath;
     Path htmlPath = Path.of(safeOutput);
     Path dir = htmlPath.getParent();
     Path fileNamePath = htmlPath.getFileName();
@@ -288,6 +421,14 @@ public final class ReportGenerator {
     Path jsonPath = outputDir.resolve(jsonFileName);
     Path jsonpPath = outputDir.resolve(jsonpFileName);
     return new ReportPaths(htmlPath, outputDir, jsonPath, jsonpPath, jsonFileName, jsonpFileName);
+  }
+
+  private static String toFileUri(Path path) {
+    return path.toAbsolutePath().normalize().toUri().toString();
+  }
+
+  static void resetReportLocationLogForTests() {
+    reportLocationLogged.set(false);
   }
 
   private static String simpleClassName(String className) {
@@ -304,10 +445,12 @@ public final class ReportGenerator {
   private static final class SourceRoot {
     private final Path path;
     private final String project;
+    private final SourceRootType type;
 
-    private SourceRoot(Path path, String project) {
+    private SourceRoot(Path path, String project, SourceRootType type) {
       this.path = path;
       this.project = project;
+      this.type = type;
     }
 
     private Path path() {
@@ -317,6 +460,15 @@ public final class ReportGenerator {
     private String project() {
       return project;
     }
+
+    private boolean isArchive() {
+      return type == SourceRootType.ARCHIVE;
+    }
+  }
+
+  private enum SourceRootType {
+    DIRECTORY,
+    ARCHIVE
   }
 
   private static final class SourceFile {

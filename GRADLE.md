@@ -7,6 +7,7 @@ While a native Gradle plugin is planned, you can easily use JVM Hotpath with Gra
 ## Basic Configuration
 
 The agent JAR is downloaded as a dependency and attached via `jvmArgs`.
+By default, reports are generated at `target/site/jvm-hotpath/execution-report.html`.
 
 ### Kotlin DSL (`build.gradle.kts`)
 
@@ -14,8 +15,8 @@ The agent JAR is downloaded as a dependency and attached via `jvmArgs`.
 val jvmHotpath by configurations.creating
 
 dependencies {
-    // Use the latest version from the Maven Central badge at the top of this file
-    jvmHotpath("io.github.sfkamath:jvm-hotpath-agent:0.2.+")
+    // Use the latest version from Maven Central
+    jvmHotpath("io.github.sfkamath:jvm-hotpath-agent:0.2.1")
 }
 
 tasks.named<JavaExec>("run") {
@@ -28,7 +29,7 @@ tasks.named<JavaExec>("run") {
 // Optional: Enable for tests
 tasks.test {
     val agentJar = jvmHotpath.singleFile.absolutePath
-    val agentArgs = "packages=com.example,output=target/test-report.html"
+    val agentArgs = "packages=com.example,output=target/site/jvm-hotpath/test-report.html"
     jvmArgs("-javaagent:${agentJar}=${agentArgs}")
 }
 ```
@@ -41,8 +42,8 @@ configurations {
 }
 
 dependencies {
-    // Use the latest version from the Maven Central badge at the top of this file
-    jvmHotpath 'io.github.sfkamath:jvm-hotpath-agent:0.2.+'
+    // Use the latest version from Maven Central
+    jvmHotpath 'io.github.sfkamath:jvm-hotpath-agent:0.2.1'
 }
 
 tasks.named('run', JavaExec) {
@@ -54,7 +55,7 @@ tasks.named('run', JavaExec) {
 // Optional: Enable for tests
 test {
     def agentJar = configurations.jvmHotpath.singleFile.absolutePath
-    def agentArgs = "packages=com.example,output=target/test-report.html"
+    def agentArgs = "packages=com.example,output=target/site/jvm-hotpath/test-report.html"
     jvmArgs "-javaagent:${agentJar}=${agentArgs}"
 }
 ```
@@ -114,13 +115,13 @@ The agent supports the following comma-separated parameters:
 | `packages` | Comma-separated list of packages to instrument (e.g., `com.example,org.myapp`). | (none) |
 | `exclude` | Comma-separated list of packages/classes to explicitly skip. | (none) |
 | `flushInterval` | Interval in seconds to regenerate the report while the app is running. | 0 (no auto-flush) |
-| `output` | Path to the generated HTML report. | `execution-report.html` |
-| `sourcepath` | Platform-specific path separator-joined roots of the Java source files. | (none) |
-| `verbose` | If `true`, prints instrumentation details to stdout. | `false` |
+| `output` | Path to the generated HTML report. | `target/site/jvm-hotpath/execution-report.html` |
+| `sourcepath` | Platform-specific path separator-joined source roots (directories or source archives). | (none) |
+| `verbose` | If `true`, prints instrumentation details and periodic flush messages. | `false` |
 | `keepAlive` | Keep the JVM alive via a heartbeat thread. | `true` |
 
 ## Troubleshooting
 
 - **No hits recorded**: Ensure the `packages` argument correctly matches your application's package structure (e.g., `packages=com.example`).
-- **Missing source code in report**: Verify that `sourcepath` points to the directory containing your `.java` files (e.g., `src/main/java`).
+- **Missing source code in report**: Verify that `sourcepath` points to valid source roots (e.g., `src/main/java` directories or `*-sources.jar` files).
 - **Dependency Resolution**: Ensure you have `mavenCentral()` in your `repositories` block.
