@@ -96,129 +96,13 @@ When you see "Line 42: executed 19 million times" in a 15-second run, you don't 
 - **Java:** 11 or higher (tested in CI on 11, 17, 21, 23, and 24)
 - **Build Tool:** Maven 3.6+ or Gradle 7.0+
 
-The agent is compiled to Java 11 bytecode for maximum compatibility. Support for Java 25 is currently a hard limit (see Development section).
-
-## Building
-
-To build the agent JAR (shaded with all dependencies):
-
-```bash
-mvn clean package -DskipTests
-```
-
-The resulting JAR will be at `target/jvm-hotpath-agent-0.2.1.jar`.
-
-> **Frontend build:** The report UI lives in `report-ui/` and is bundled via Vite. `mvn clean package` runs `frontend-maven-plugin` to execute `npm install`/`npm run build` inside that folder before packaging, producing a browser-safe `report-app.js` (IIFE bundle). When iterating on the UI you can run `npm install && npm run build` manually from `report-ui/` to refresh the bundled asset.
+The agent is compiled to Java 11 bytecode for maximum compatibility. Java 25 is currently blocked by upstream bytecode-tooling support (see Development section).
 
 ## Quick Start
 
-### Maven
-
-The easiest way to use JVM Hotpath is via the Maven plugin. It automatically finds the agent, configures your test runner (Surefire/Failsafe), and detects your project structure.
-
-Add this to your `pom.xml`:
-
-```xml
-<plugin>
-    <groupId>io.github.sfkamath</groupId>
-    <artifactId>jvm-hotpath-maven-plugin</artifactId>
-    <!-- Use the latest version from the Maven Central badge at the top of this file -->
-    <version>0.2.1</version>
-    <executions>
-        <execution>
-            <goals>
-                <goal>prepare-agent</goal>
-            </goals>
-        </execution>
-    </executions>
-    <configuration>
-        <flushInterval>5</flushInterval>
-    </configuration>
-</plugin>
-```
-
-Then run your tests:
-```bash
-mvn verify
-```
-
-> **Note:** For multi-module projects or to run the provided integration tests, use the `it` profile: `mvn verify -Pit`.
-
-### Gradle
-
-See [GRADLE.md](GRADLE.md) for Gradle configuration.
-
-## Usage
-
 ### Maven Plugin (Recommended)
 
-The easiest way to use JVM Hotpath is via the Maven plugin. It automatically finds the agent, configures your test runner (Surefire/Failsafe), and detects your project structure.
-
-Add this to your `pom.xml`:
-
-```xml
-<plugin>
-    <groupId>io.github.sfkamath</groupId>
-    <artifactId>jvm-hotpath-maven-plugin</artifactId>
-    <!-- Use the latest version from the Maven Central badge at the top of this file -->
-    <version>0.2.1</version>
-    <executions>
-        <execution>
-            <goals>
-                <goal>prepare-agent</goal>
-            </goals>
-        </execution>
-    </executions>
-    <configuration>
-        <!-- Optional: Auto-flush report every 5 seconds -->
-        <flushInterval>5</flushInterval>
-    </configuration>
-</plugin>
-```
-
-Then run your tests:
-```bash
-mvn verify
-```
-The report will be generated at `target/site/jvm-hotpath/execution-report.html`.
-
-#### Multi-source invocation
-
-Just like the manual agent, the plugin can handle multiple source roots and packages. This is ideal for projects with **generated resources** (like OpenAPI or MapStruct) or when you want to instrument multiple modules in one report.
-
-**Via `pom.xml`:**
-
-```xml
-<configuration>
-    <!-- Your project's groupId and main sources are auto-detected. -->
-    <!-- Add extra packages to instrument (comma-separated): -->
-    <packages>com.example,com.other.module</packages>
-    
-    <!-- Add extra source roots (joined with the platform separator : or ;): -->
-    <sourcepath>
-        module-a/src/main/java:module-a/target/generated-sources:module-b/src/main/java
-    </sourcepath>
-</configuration>
-```
-
-**Via Command Line:**
-
-You can override or append configuration via system properties. **Note:** CLI properties are only respected if the corresponding parameter is *not* explicitly defined in the `<configuration>` block of your `pom.xml`.
-
-```bash
-mvn verify \
-  -Djvm-hotpath.packages=com.example,com.other.module \
-  -Djvm-hotpath.sourcepath=module-a/src/main/java:module-a/target/generated-sources:module-b/src/main/java
-```
-
-*Note: Use `:` (macOS/Linux) or `;` (Windows) as the path separator.*
-
-#### Running the Application
-
-To run your application with the agent active, ensure the `${argLine}` property is passed to your JVM runner.
-
-**Using a Profile (Recommended):**
-Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
+Add this `instrument` profile to your `pom.xml`:
 
 ```xml
 <profile>
@@ -228,19 +112,16 @@ Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
             <plugin>
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
-                <!-- Use the latest version from the Maven Central badge at the top of this file -->
-                <version>0.2.1</version>
+                <version>0.2.3</version>
                 <executions>
                     <execution>
-                        <goals><goal>prepare-agent</goal></goals>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
                     </execution>
                 </executions>
                 <configuration>
                     <flushInterval>5</flushInterval>
-                    <!-- Optional: include dependency sources via source archive -->
-                    <sourcepath>${user.home}/.m2/repository/com/example/shared-library/1.0.0/shared-library-1.0.0-sources.jar</sourcepath>
-                    <!-- Optional but recommended to avoid -Dexec.mainClass on every run -->
-                    <mainClass>com.example.Main</mainClass>
                 </configuration>
             </plugin>
             <plugin>
@@ -249,7 +130,6 @@ Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
                 <version>3.5.0</version>
                 <configuration>
                     <executable>java</executable>
-                    <!-- Automatically picks up the agent from ${argLine} and your main class -->
                     <commandlineArgs>${argLine} -classpath %classpath ${exec.mainClass}</commandlineArgs>
                 </configuration>
             </plugin>
@@ -258,34 +138,68 @@ Configure `exec-maven-plugin` to use the `${argLine}` populated by the agent.
 </profile>
 ```
 
-Then run (ensure the `instrument` profile is active for prefix resolution):
+Run your app:
+
 ```bash
-mvn jvm-hotpath:prepare-agent exec:exec -Pinstrument
+mvn -Pinstrument jvm-hotpath:prepare-agent exec:exec
 ```
 
-If your project does not define a main class in `pom.xml`, pass it on the CLI:
-```bash
-mvn jvm-hotpath:prepare-agent exec:exec -Pinstrument -Dexec.mainClass="com.example.Main"
+> **Note:** `exec:exec` requires a main class. Provide it via `-Dexec.mainClass=...`, or configure `mainClass`/`exec.mainClass` in your `pom.xml`.
+
+Report output: `target/site/jvm-hotpath/execution-report.html`
+
+### Direct `-javaagent` (Alternative)
+
+Run the app with `-javaagent` to instrument without the Maven plugin. For more details, see [Manual `-javaagent` Workflow](#manual-javaagent-workflow).
+
+## Workflows
+
+Choose either the Maven plugin workflow (recommended) or the manual `-javaagent` workflow.
+Gradle: see [GRADLE.md](GRADLE.md).
+
+### Maven Plugin Workflow
+
+Use the `instrument` profile from Quick Start.
+This workflow requires `exec:exec` to have a main class (via `-Dexec.mainClass=...` or config).
+
+For `exec:exec`, `prepare-agent` resolves `exec.mainClass` in this order:
+1. `-Dexec.mainClass`
+2. `jvm-hotpath.mainClass`
+3. `main.class`
+4. `mainClass`
+5. `start-class`
+6. `spring-boot.run.main-class`
+
+If no main class can be resolved, `prepare-agent` fails fast. This validation is skipped for non-`exec` runs (for example test-only runs).
+
+Common Maven plugin extensions:
+
+#### Add More Packages or Source Roots
+
+Use this when your run spans multiple modules or generated sources:
+
+```xml
+<configuration>
+    <packages>com.example,com.other.module</packages>
+    <sourcepath>
+        module-a/src/main/java:module-a/target/generated-sources:module-b/src/main/java
+    </sourcepath>
+</configuration>
 ```
 
-`prepare-agent` populates `exec.mainClass` from (in order): `-Dexec.mainClass`, `jvm-hotpath.mainClass`, `main.class`, `mainClass`, `start-class`, and `spring-boot.run.main-class`.
+Or as a one-off CLI override:
 
-### Advanced Configuration
+```bash
+mvn -Pinstrument jvm-hotpath:prepare-agent exec:exec \
+  -Djvm-hotpath.packages=com.example,com.other.module \
+  -Djvm-hotpath.sourcepath=module-a/src/main/java:module-a/target/generated-sources:module-b/src/main/java
+```
 
-The plugin uses **"Smart Defaults"** but allows additive configuration.
+Use `:` on macOS/Linux and `;` on Windows for `sourcepath`.
 
-| Config | Description | Default Behavior |
-| :--- | :--- | :--- |
-| `packages` | Packages to instrument. | **Appends** to project's `groupId`. |
-| `sourcepath` | Source roots for the report. | **Appends** to project's `src/main/java`. |
-| `mainClass` | Optional main class hint used to populate `exec.mainClass` for `exec:exec`. | **Inferred** from common Maven properties. |
-| `includes` | External dependencies to include. | Resolves dependency source archives and appends them to `sourcepath`. |
+#### Include Dependency Sources
 
-You usually do not need to add `src/main/java` manually in `sourcepath`; the plugin appends it automatically.
-
-#### Example: Including External Dependencies
-
-If you want to instrument code from a dependency (and see its source code in the report), configure `includes` in your `pom.xml`. The plugin resolves the dependency source archive from Maven and appends it to `sourcepath`:
+Use `<includes>` in `pom.xml` for repeatable team/project config:
 
 ```xml
 <configuration>
@@ -300,85 +214,93 @@ If you want to instrument code from a dependency (and see its source code in the
 </configuration>
 ```
 
-**Via Command Line:**
-You can achieve the same by setting dependency packages directly and pointing `sourcepath` at source roots (directories and/or source archives):
+Use CLI override only for one-off local runs:
 
 ```bash
-mvn verify \
+mvn -Pinstrument jvm-hotpath:prepare-agent exec:exec \
   -Djvm-hotpath.packages=com.example.shared \
   -Djvm-hotpath.sourcepath=$HOME/.m2/repository/com/example/shared-library/1.0.0/shared-library-1.0.0-sources.jar
 ```
 
-> **Note:** `sourcepath` accepts directories and source archives (`.jar`/`.zip`).
->
-> **Version matching:** If you provide dependency source archives manually via `sourcepath`, use the same version as the runtime dependency to keep line mapping accurate. Prefer `includes` when possible so sources are resolved automatically.
+`sourcepath` accepts directories and source archives (`.jar`/`.zip`). If you provide archives manually, match source and runtime versions.
 
-### Manual Agent Usage
+<a id="manual-javaagent-workflow"></a>
+### Manual `-javaagent` Workflow
 
-If you prefer not to use the plugin, you can attach the agent manually.
+Download the agent from Maven Central:
 
-**Build the agent:**
+```bash
+wget https://repo1.maven.org/maven2/io/github/sfkamath/jvm-hotpath-agent/0.2.3/jvm-hotpath-agent-0.2.3.jar
+export PATH_TO_AGENT_JAR="$PWD/jvm-hotpath-agent-0.2.3.jar"
+```
+
+Or build locally:
+
 ```bash
 mvn clean package -DskipTests
+export PATH_TO_AGENT_JAR="$PWD/agent/target/jvm-hotpath-agent-0.2.3.jar"
 ```
-The JAR will be located at `agent/target/jvm-hotpath-agent-0.2.1.jar`.
 
-**Run with Agent:**
+Run with single-source config:
 
 ```bash
 java -javaagent:${PATH_TO_AGENT_JAR}=packages=com.example,sourcepath=src/main/java,flushInterval=5,output=target/site/jvm-hotpath/execution-report.html -jar your-app.jar
 ```
 
-#### Multi-source invocation
+Report output: `target/site/jvm-hotpath/execution-report.html`
 
-When the instrumented application depends on multiple modules or libraries, repeat the `packages`/`sourcepath` values in a single agent argument string. Each `packages` entry should map to one of the supplied source roots (hand-written or generated) so the UI can show them under the correct project; mix generated-source directories (`target/generated-sources`) etc. with the corresponding `src/main/java` roots as needed. Package lists stay comma-separated, while source roots are joined with the platform-specific `Path.pathSeparator` (`:` on macOS/Linux, `;` on Windows). Source roots can be directories or source archives (`.jar`/`.zip`). Example structure:
+Run with multi-source config:
 
 ```bash
-java -javaagent:${PATH_TO_AGENT_JAR}=packages=com.example,com.other.module,\ 
-    flushInterval=5,\ 
-    output=target/site/jvm-hotpath/execution-report.html,\ 
-    sourcepath=module-a/src/main/java:module-a/target/generated-sources:module-b/src/main/java,\ 
-    -jar your-app.jar
+AGENT_ARGS="packages=com.example,com.other.module,flushInterval=5,output=target/site/jvm-hotpath/execution-report.html,sourcepath=module-a/src/main/java:module-a/target/generated-sources:module-b/src/main/java"
+java -javaagent:${PATH_TO_AGENT_JAR}="${AGENT_ARGS}" -jar your-app.jar
 ```
 
-The agent merges every source root into the tree. Visually it looks like:
+Use `:` on macOS/Linux and `;` on Windows for `sourcepath`.
 
-```
-module-a
-  com.example
-  com.example.generated
-module-b
-  com.other.module
-```
+### Configuration Options
 
-#### Agent Arguments
+Smart defaults (plugin workflow):
 
-| Argument | Description | Default |
-| :--- | :--- | :--- |
-| `packages` | Comma-separated list of packages to instrument (e.g., `com.myapp`). | (none) |
-| `exclude` | Comma-separated list of packages/classes to explicitly skip. | (none) |
-| `flushInterval` | Interval in seconds to regenerate the report while the app is running. | 0 (no auto-flush) |
-| `output` | Path to the generated HTML report. | `target/site/jvm-hotpath/execution-report.html` |
-| `sourcepath` | Path(s) to source roots for code overlay (directories or source archives). | (none) |
-| `verbose` | If `true`, prints instrumentation details and periodic flush messages. | `false` |
-| `keepAlive` | Keep the JVM alive via a heartbeat thread (useful for scheduled apps without a server). | `true` |
+- `packages`: starts with your project `groupId`
+- `sourcepath`: starts with compile source roots (typically `src/main/java`)
+- `output`: defaults to `target/site/jvm-hotpath/execution-report.html`
+- `flushInterval`: defaults to `0` (set to `5` for live updates)
 
-## Viewing the Report
+Use the table below as the full reference.
+
+| Option | Scope | Agent Arg | Maven Plugin Config | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| `packages` | Agent + Plugin | `packages=` | `jvm-hotpath.packages` / `<packages>` | Plugin seeds with project `groupId`, then appends configured values. |
+| `exclude` | Agent + Plugin | `exclude=` | `jvm-hotpath.exclude` / `<exclude>` | Exclusion list passed through to agent. |
+| `flushInterval` | Agent + Plugin | `flushInterval=` | `jvm-hotpath.flushInterval` / `<flushInterval>` | Interval in seconds. Default `0` (no periodic flush). |
+| `output` | Agent + Plugin | `output=` | `jvm-hotpath.output` / `<output>` | Default `target/site/jvm-hotpath/execution-report.html`. |
+| `sourcepath` | Agent + Plugin | `sourcepath=` | `jvm-hotpath.sourcepath` / `<sourcepath>` | Supports directories and source archives (`.jar`/`.zip`). |
+| `verbose` | Agent + Plugin | `verbose=` | `jvm-hotpath.verbose` / `<verbose>` | Extra instrumentation/flush logging. |
+| `keepAlive` | Agent + Plugin | `keepAlive=` | `jvm-hotpath.keepAlive` / `<keepAlive>` | Agent default is `true`; plugin emits when enabled. |
+| `mainClass` | Plugin only | n/a | `jvm-hotpath.mainClass` / `<mainClass>` | Populates `exec.mainClass` for `exec:exec`. |
+| `includes` | Plugin only | n/a | `<includes>` | Resolves dependency sources and appends them to `sourcepath`. |
+| `propertyName` | Plugin only | n/a | `jvm-hotpath.propertyName` / `<propertyName>` | Target property for injected `-javaagent` string (default `argLine`). |
+| `skip` | Plugin only | n/a | `jvm-hotpath.skip` / `<skip>` | Skips plugin execution. |
+
+## Report and Output
+
+### Viewing the Report
 
 1.  Open the generated `target/site/jvm-hotpath/execution-report.html` file in any modern web browser.
 2.  If `flushInterval` is set, the report will automatically poll for updates from a sibling `execution-report.js` file.
 3.  **No Web Server Required**: Thanks to the JSONP implementation, live updates work even when the file is opened directly from disk (`file://` protocol).
 4.  If you open the report from disk and nothing renders, hard-refresh once (the `report-app.js` bundle is copied alongside the report and may be cached).
 
-## Report Artifacts
+### Report Artifacts
 
 The agent produces both human-readable and machine-readable output in the `target/site/jvm-hotpath/` directory:
 
-### Primary Outputs
+#### Primary Outputs
 - **`execution-report.html`**: The interactive web UI for developers. Self-contained with the initial data snapshot.
 - **`execution-report.json`**: Pure JSON data for machine consumption (CI pipelines, LLM analysis, etc.).
 
-### Supporting Assets
+#### Supporting Assets
 - **`execution-report.js`**: A JSONP wrapper used by the HTML report for live updates without a web server.
 - **`report-app.js`**: The bundled Vue.js runtime used by the HTML UI.
 
@@ -400,7 +322,7 @@ The JSON payload format is optimized for clarity:
 
 See `docs/jsonp-live-updates.md` for implementation details and gotchas.
 
-## Standalone Report Generation
+### Standalone Report Generation
 
 If you have a saved `execution-report.json` file and want to regenerate the HTML UI (e.g., after updating the template or changing themes):
 
@@ -414,6 +336,16 @@ java -jar ${PATH_TO_AGENT_JAR} --data=target/site/jvm-hotpath/execution-report.j
 - **Bytecode Target:** Java 11 (for maximum runtime compatibility)
 - **Instrumentation Engine:** ASM 9.9.1 (supports up to Java 24 bytecode)
 - **CI Testing Matrix:** Covers Java 11, 17, 21, 23 and 24.
+
+To build the agent JAR (shaded with all dependencies):
+
+```bash
+mvn clean package -DskipTests
+```
+
+The resulting JAR will be at `agent/target/jvm-hotpath-agent-0.2.3.jar`.
+
+> **Frontend build:** The report UI lives in `report-ui/` and is bundled via Vite. `mvn clean package` runs `frontend-maven-plugin` to execute `npm install`/`npm run build` inside that folder before packaging, producing a browser-safe `report-app.js` (IIFE bundle). When iterating on the UI you can run `npm install && npm run build` manually from `report-ui/` to refresh the bundled asset.
 
 > **Java 25 Note:** Support for Java 25 is currently blocked until the ASM project releases a version that supports the finalized Java 25 bytecode specification. Using the agent on a Java 25 JVM will likely result in an `UnsupportedClassVersionError` during instrumentation.
 
