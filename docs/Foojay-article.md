@@ -117,7 +117,7 @@ Add the plugin to your `pom.xml`:
 <plugin>
     <groupId>io.github.sfkamath</groupId>
     <artifactId>jvm-hotpath-maven-plugin</artifactId>
-    <version>0.2.1</version>
+    <version>0.2.3</version>
     <executions>
         <execution>
             <goals>
@@ -134,8 +134,10 @@ Add the plugin to your `pom.xml`:
 
 Then run your application with the agent active:
 ```bash
-mvn jvm-hotpath:prepare-agent exec:exec -Pinstrument -Dexec.mainClass="com.example.Main"
+mvn -Pinstrument jvm-hotpath:prepare-agent exec:exec
 ```
+
+For `exec:exec`, you need a main class: pass `-Dexec.mainClass=...` or configure `mainClass`/`exec.mainClass` in `pom.xml`.
 
 The report will be generated at `target/site/jvm-hotpath/execution-report.html`.
 
