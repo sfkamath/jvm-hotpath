@@ -27,6 +27,7 @@ public final class ExecutionCounterAgent {
   private int flushInterval;
   private boolean verbose;
   private boolean keepAlive = true;
+  private boolean append;
 
   public static void main(String[] args) {
     if (args.length == 0) {
@@ -84,6 +85,16 @@ public final class ExecutionCounterAgent {
 
     parseArguments(agentArgs);
     this.availableSources = SourcePathScanner.scan(sourcePath);
+
+    if (append) {
+      String jsonPath = outputFile;
+      if (jsonPath.endsWith(".html")) {
+        jsonPath = jsonPath.substring(0, jsonPath.length() - 5) + ".json";
+      } else if (jsonPath.isEmpty()) {
+        jsonPath = "target/site/jvm-hotpath/execution-report.json";
+      }
+      ReportGenerator.rehydrate(jsonPath);
+    }
 
     if (flushInterval > 0) {
       Thread flushThread =
@@ -192,6 +203,9 @@ public final class ExecutionCounterAgent {
           break;
         case "keepAlive":
           keepAlive = Boolean.parseBoolean(value);
+          break;
+        case "append":
+          append = Boolean.parseBoolean(value);
           break;
         default:
           if (verbose) {
