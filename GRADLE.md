@@ -16,7 +16,7 @@ val jvmHotpath by configurations.creating
 
 dependencies {
     // Use the latest version from Maven Central
-    jvmHotpath("io.github.sfkamath:jvm-hotpath-agent:0.2.3")
+    jvmHotpath("io.github.sfkamath:jvm-hotpath-agent:0.2.4")
 }
 
 tasks.named<JavaExec>("run") {
@@ -43,7 +43,7 @@ configurations {
 
 dependencies {
     // Use the latest version from Maven Central
-    jvmHotpath 'io.github.sfkamath:jvm-hotpath-agent:0.2.3'
+    jvmHotpath 'io.github.sfkamath:jvm-hotpath-agent:0.2.4'
 }
 
 tasks.named('run', JavaExec) {

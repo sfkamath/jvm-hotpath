@@ -117,7 +117,7 @@ Add the plugin to your `pom.xml`:
 <plugin>
     <groupId>io.github.sfkamath</groupId>
     <artifactId>jvm-hotpath-maven-plugin</artifactId>
-    <version>0.2.3</version>
+    <version>0.2.4</version>
     <executions>
         <execution>
             <goals>

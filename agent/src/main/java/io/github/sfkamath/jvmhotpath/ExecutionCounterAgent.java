@@ -23,6 +23,7 @@ public final class ExecutionCounterAgent {
   private String[] excludePackages = new String[0];
   private String outputFile = "target/site/jvm-hotpath/execution-report.html";
   private String sourcePath = "";
+  private java.util.Set<String> availableSources = new java.util.HashSet<>();
   private int flushInterval;
   private boolean verbose;
   private boolean keepAlive = true;
@@ -82,6 +83,7 @@ public final class ExecutionCounterAgent {
     }
 
     parseArguments(agentArgs);
+    this.availableSources = SourcePathScanner.scan(sourcePath);
 
     if (flushInterval > 0) {
       Thread flushThread =
@@ -239,28 +241,18 @@ public final class ExecutionCounterAgent {
       if (className == null) {
         return null;
       }
-      // Don't instrument our own core classes
+
+      // 1. Filesystem-as-Truth: Only instrument if we have the source code.
+      // Handle inner classes by checking for the top-level .java file.
+      String baseName = className.contains("$") ? className.substring(0, className.indexOf('$')) : className;
+      if (!availableSources.isEmpty() && !availableSources.contains(baseName + ".java")) {
+        return null;
+      }
+
+      // 2. Don't instrument our own core classes
       if (className.startsWith("io/github/sfkamath/jvmhotpath/Execution")
-          || className.startsWith("io/github/sfkamath/jvmhotpath/Report")) {
-        return null;
-      }
-      if (className.startsWith("java/")
-          || className.startsWith("javax/")
-          || className.startsWith("sun/")
-          || className.startsWith("jdk/")
-          || className.startsWith("com/sun/")) {
-        return null;
-      }
-      if (className.startsWith("io/micronaut/")
-          || className.startsWith("jakarta/")
-          || className.startsWith("org/slf4j/")
-          || className.startsWith("ch/qos/logback/")
-          || className.startsWith("io/netty/")) {
-        return null;
-      }
-      if (className.contains("$Definition")
-          || className.contains("$Introspection")
-          || className.contains("$Intercepted")) {
+          || className.startsWith("io/github/sfkamath/jvmhotpath/Report")
+          || className.startsWith("io/github/sfkamath/jvmhotpath/SourcePathScanner")) {
         return null;
       }
 
