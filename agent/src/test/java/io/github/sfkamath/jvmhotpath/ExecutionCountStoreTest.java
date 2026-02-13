@@ -104,7 +104,8 @@ class ExecutionCountStoreTest {
 
   @Test
   void testSeedCountsWithoutExistingChecksum() {
-    // If we haven't scanned the source yet, we accept the seed (we'll validate it later when scanning)
+    // If we haven't scanned the source yet, we accept the seed (we'll validate it later when
+    // scanning)
     boolean seeded = ExecutionCountStore.seedCounts("Unknown", "SOME_CRC", Map.of(1, 10L));
     assertTrue(seeded);
     assertEquals(10, ExecutionCountStore.getCount("Unknown", 1));

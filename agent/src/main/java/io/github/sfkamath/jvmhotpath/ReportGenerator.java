@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
+import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -109,10 +110,13 @@ public final class ReportGenerator {
     }
 
     // Record checksums for current source state so rehydration can detect drift
-    fileDataMap.values().forEach(data -> {
-      String className = data.getPath().replace('/', '.').replace(".java", "");
-      ExecutionCountStore.recordChecksum(className, data.getChecksum());
-    });
+    fileDataMap
+        .values()
+        .forEach(
+            data -> {
+              String className = data.getPath().replace('/', '.').replace(".java", "");
+              ExecutionCountStore.recordChecksum(className, data.getChecksum());
+            });
 
     // 2. Merge execution counts
     if (!allCounters.isEmpty()) {
@@ -286,7 +290,7 @@ public final class ReportGenerator {
     if (content == null || content.isEmpty()) {
       return "0";
     }
-    java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+    CRC32 crc = new CRC32();
     crc.update(content.getBytes(StandardCharsets.UTF_8));
     return Long.toHexString(crc.getValue());
   }

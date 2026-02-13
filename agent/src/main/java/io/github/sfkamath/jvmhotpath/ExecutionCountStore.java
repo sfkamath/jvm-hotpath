@@ -84,11 +84,8 @@ public final class ExecutionCountStore {
     Map<Integer, AtomicLong> classCounters =
         counters.computeIfAbsent(className, k -> new ConcurrentHashMap<>());
     existingCounts.forEach(
-        (line, count) -> {
-          classCounters
-              .computeIfAbsent(line, k -> new AtomicLong(0))
-              .addAndGet(count);
-        });
+        (line, count) ->
+            classCounters.computeIfAbsent(line, k -> new AtomicLong(0)).addAndGet(count));
 
     return true;
   }

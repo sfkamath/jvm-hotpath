@@ -318,7 +318,8 @@ class ReportGeneratorTest {
       ReportGenerator.generateHtmlReport(reportPath, sourceRoot.toString(), false);
 
       // Verify checksum was generated
-      List<ReportGenerator.FileData> data = ReportGenerator.collectData(sourceRoot.toString(), false);
+      List<ReportGenerator.FileData> data =
+          ReportGenerator.collectData(sourceRoot.toString(), false);
       String checksum = data.get(0).getChecksum();
       assertNotNull(checksum);
       assertNotEquals("0", checksum);
@@ -333,9 +334,10 @@ class ReportGeneratorTest {
       ExecutionCountStore.reset();
       // Record new checksum for the drifted file
       ReportGenerator.collectData(sourceRoot.toString(), false);
-      
+
       ReportGenerator.rehydrate(jsonPath);
-      assertEquals(0L, ExecutionCountStore.getCount("Service", 10), "Should ignore counts due to drift");
+      assertEquals(
+          0L, ExecutionCountStore.getCount("Service", 10), "Should ignore counts due to drift");
 
     } finally {
       deleteRecursive(tempDir.toFile());

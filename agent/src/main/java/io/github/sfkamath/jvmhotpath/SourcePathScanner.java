@@ -14,8 +14,8 @@ import java.util.zip.ZipFile;
 final class SourcePathScanner {
 
   /**
-   * Scans the given source path and returns a set of available Java source files
-   * (e.g., "io/github/sfkamath/Foo.java").
+   * Scans the given source path and returns a set of available Java source files (e.g.,
+   * "io/github/sfkamath/Foo.java").
    */
   static Set<String> scan(String sourcePath) {
     Set<String> availableSources = new HashSet<>();
@@ -48,15 +48,17 @@ final class SourcePathScanner {
 
   private static void scanDirectory(Path root, Path current, Set<String> found) throws IOException {
     try (var stream = Files.list(current)) {
-      stream.forEach(p -> {
-        if (Files.isDirectory(p)) {
-          try {
-            scanDirectory(root, p, found);
-          } catch (IOException ignored) {}
-        } else if (p.toString().endsWith(".java")) {
-          found.add(root.relativize(p).toString().replace('\\', '/'));
-        }
-      });
+      stream.forEach(
+          p -> {
+            if (Files.isDirectory(p)) {
+              try {
+                scanDirectory(root, p, found);
+              } catch (IOException ignored) {
+              }
+            } else if (p.toString().endsWith(".java")) {
+              found.add(root.relativize(p).toString().replace('\\', '/'));
+            }
+          });
     }
   }
 
@@ -77,7 +79,11 @@ final class SourcePathScanner {
   }
 
   private static boolean isArchive(Path path) {
-    String name = path.getFileName().toString().toLowerCase();
+    Path fileName = path.getFileName();
+    if (fileName == null) {
+      return false;
+    }
+    String name = fileName.toString().toLowerCase();
     return name.endsWith(".jar") || name.endsWith(".zip");
   }
 

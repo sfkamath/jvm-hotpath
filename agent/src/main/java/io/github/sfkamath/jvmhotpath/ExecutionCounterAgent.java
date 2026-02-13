@@ -7,7 +7,9 @@ import java.nio.file.Path;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -23,7 +25,7 @@ public final class ExecutionCounterAgent {
   private String[] excludePackages = new String[0];
   private String outputFile = "target/site/jvm-hotpath/execution-report.html";
   private String sourcePath = "";
-  private java.util.Set<String> availableSources = new java.util.HashSet<>();
+  private Set<String> availableSources = new HashSet<>();
   private int flushInterval;
   private boolean verbose;
   private boolean keepAlive = true;
@@ -209,7 +211,7 @@ public final class ExecutionCounterAgent {
           break;
         default:
           if (verbose) {
-            logger.log(Level.FINE, "Unknown agent argument: {0}={1}", new Object[]{key, value});
+            logger.log(Level.FINE, "Unknown agent argument: {0}={1}", new Object[] {key, value});
           }
           break;
       }
@@ -258,7 +260,8 @@ public final class ExecutionCounterAgent {
 
       // 1. Filesystem-as-Truth: Only instrument if we have the source code.
       // Handle inner classes by checking for the top-level .java file.
-      String baseName = className.contains("$") ? className.substring(0, className.indexOf('$')) : className;
+      String baseName =
+          className.contains("$") ? className.substring(0, className.indexOf('$')) : className;
       if (!availableSources.isEmpty() && !availableSources.contains(baseName + ".java")) {
         return null;
       }
@@ -320,6 +323,4 @@ public final class ExecutionCounterAgent {
       }
     }
   }
-
-  public ExecutionCounterAgent() {}
 }

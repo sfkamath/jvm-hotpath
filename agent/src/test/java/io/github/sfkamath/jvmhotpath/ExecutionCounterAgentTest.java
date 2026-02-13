@@ -50,11 +50,11 @@ class ExecutionCounterAgentTest {
       ExecutionCounterAgent.main(new String[0]);
 
       // Should fail with missing data
-      ExecutionCounterAgent.main(new String[]{"--output=target/test.html"});
+      ExecutionCounterAgent.main(new String[] {"--output=target/test.html"});
 
       // Should succeed regenerating
       ExecutionCounterAgent.main(
-          new String[]{
+          new String[] {
             "--data=" + dataFile.toAbsolutePath(), "--output=" + reportFile.toAbsolutePath()
           });
 
@@ -133,20 +133,34 @@ class ExecutionCounterAgentTest {
 
     // 1. Should skip Micronaut definitions and intercepted classes
     assertNull(transformer.transform(null, "com/app/$Service$Definition", null, null, new byte[0]));
-    assertNull(transformer.transform(null, "com/app/$Service$Intercepted", null, null, new byte[0]));
-    assertNull(transformer.transform(null, "com/app/$Service$Introspection", null, null, new byte[0]));
+    assertNull(
+        transformer.transform(null, "com/app/$Service$Intercepted", null, null, new byte[0]));
+    assertNull(
+        transformer.transform(null, "com/app/$Service$Introspection", null, null, new byte[0]));
 
     // 2. Should skip Spring CGLIB proxies
-    assertNull(transformer.transform(null, "com/app/Service$$EnhancerBySpringCGLIB$$abc", null, null, new byte[0]));
-    assertNull(transformer.transform(null, "com/app/Service$$FastClassBySpringCGLIB$$abc", null, null, new byte[0]));
+    assertNull(
+        transformer.transform(
+            null, "com/app/Service$$EnhancerBySpringCGLIB$$abc", null, null, new byte[0]));
+    assertNull(
+        transformer.transform(
+            null, "com/app/Service$$FastClassBySpringCGLIB$$abc", null, null, new byte[0]));
 
     // 3. Should skip our own agent core classes
-    assertNull(transformer.transform(null, "io/github/sfkamath/jvmhotpath/ExecutionCountStore", null, null, new byte[0]));
-    assertNull(transformer.transform(null, "io/github/sfkamath/jvmhotpath/ReportGenerator", null, null, new byte[0]));
-    assertNull(transformer.transform(null, "io/github/sfkamath/jvmhotpath/SourcePathScanner", null, null, new byte[0]));
+    assertNull(
+        transformer.transform(
+            null, "io/github/sfkamath/jvmhotpath/ExecutionCountStore", null, null, new byte[0]));
+    assertNull(
+        transformer.transform(
+            null, "io/github/sfkamath/jvmhotpath/ReportGenerator", null, null, new byte[0]));
+    assertNull(
+        transformer.transform(
+            null, "io/github/sfkamath/jvmhotpath/SourcePathScanner", null, null, new byte[0]));
 
-    // 4. Should NOT skip normal app classes (if packages= is empty, it instruments everything not explicitly excluded)
-    // Using real class bytes would be better, but here we just check if it enters the try block (which fails on empty bytes)
+    // 4. Should NOT skip normal app classes (if packages= is empty, it instruments everything not
+    // explicitly excluded)
+    // Using real class bytes would be better, but here we just check if it enters the try block
+    // (which fails on empty bytes)
     // but the exclusion logic is BEFORE the try block.
   }
 
@@ -157,7 +171,7 @@ class ExecutionCounterAgentTest {
     ClassFileTransformer transformer = agent.getTransformer();
 
     // Providing garbage bytes that ASM can't parse should trigger catch block
-    assertNull(transformer.transform(null, "com/app/Logic", null, null, new byte[]{1, 2, 3}));
+    assertNull(transformer.transform(null, "com/app/Logic", null, null, new byte[] {1, 2, 3}));
   }
 
   @Test
