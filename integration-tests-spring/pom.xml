@@ -23,7 +23,6 @@
         <dependency>
             <groupId>io.github.sfkamath</groupId>
             <artifactId>jvm-hotpath-agent</artifactId>
-            <version>${revision}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -49,7 +48,6 @@
             <plugin>
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
-                <version>${revision}</version>
                 <executions>
                     <execution>
                         <goals>

@@ -14,7 +14,9 @@
     <artifactId>jvm-hotpath-integration-tests-micronaut</artifactId>
 
     <properties>
-        <micronaut.version>4.10.14</micronaut.version>
+        <micronaut.version>4.10.15</micronaut.version>
+        <micronaut-test.version>4.10.2</micronaut-test.version>
+        <jakarta-annotation.version>2.1.1</jakarta-annotation.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <maven.install.skip>true</maven.install.skip>
     </properties>
@@ -23,7 +25,6 @@
         <dependency>
             <groupId>io.github.sfkamath</groupId>
             <artifactId>jvm-hotpath-agent</artifactId>
-            <version>${revision}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -45,13 +46,13 @@
         <dependency>
             <groupId>io.micronaut.test</groupId>
             <artifactId>micronaut-test-junit5</artifactId>
-            <version>4.10.2</version>
+            <version>${micronaut-test.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>jakarta.annotation</groupId>
             <artifactId>jakarta.annotation-api</artifactId>
-            <version>2.1.1</version>
+            <version>${jakarta-annotation.version}</version>
         </dependency>
     </dependencies>
 
@@ -60,7 +61,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.1</version>
                 <configuration>
                     <annotationProcessorPaths>
                         <path>
@@ -74,7 +74,6 @@
             <plugin>
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
-                <version>${revision}</version>
                 <executions>
                     <execution>
                         <goals>
@@ -106,7 +105,6 @@
             <plugin>
                 <groupId>com.github.eirslett</groupId>
                 <artifactId>frontend-maven-plugin</artifactId>
-                <version>${frontend-maven-plugin.version}</version>
                 <configuration>
                     <workingDirectory>../agent/report-ui</workingDirectory>
                     <installDirectory>../agent/target/node</installDirectory>
