@@ -77,6 +77,10 @@ public class PrepareAgentMojo extends AbstractMojo {
   @Parameter(property = "jvm-hotpath.keepAlive", defaultValue = "false")
   private boolean keepAlive;
 
+  /** Append to existing report instead of overwriting. */
+  @Parameter(property = "jvm-hotpath.append", defaultValue = "false")
+  private boolean append;
+
   /** Name of the property to set. Default is "argLine" (used by Surefire/Failsafe). */
   @Parameter(property = "jvm-hotpath.propertyName", defaultValue = "argLine")
   private String propertyName;
@@ -207,6 +211,13 @@ public class PrepareAgentMojo extends AbstractMojo {
         args.append(",");
       }
       args.append("keepAlive=true");
+    }
+
+    if (append) {
+      if (args.length() > 0) {
+        args.append(",");
+      }
+      args.append("append=true");
     }
 
     String agentString = "-javaagent:" + agentJar.getAbsolutePath();

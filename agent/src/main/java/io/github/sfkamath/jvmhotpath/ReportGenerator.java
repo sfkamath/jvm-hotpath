@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
+import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -60,6 +61,36 @@ public final class ReportGenerator {
     renderReport(payload, resolveReportPaths(outputPath));
   }
 
+  /** Loads an existing report JSON and seeds the ExecutionCountStore. */
+  public static void rehydrate(String jsonPath) {
+    try {
+      Path path = Path.of(jsonPath);
+      if (!Files.exists(path)) {
+        return;
+      }
+      ReportPayload payload = readPayload(jsonPath);
+      if (payload.files != null) {
+        for (FileData file : payload.files) {
+          String className = file.getPath().replace('/', '.').replace(".java", "");
+          boolean seeded =
+              ExecutionCountStore.seedCounts(className, file.getChecksum(), file.getCounts());
+
+          if (!seeded && file.getCounts() != null && !file.getCounts().isEmpty()) {
+            String current = ExecutionCountStore.getChecksum(className);
+            if (current != null && !current.equals(file.getChecksum())) {
+              logger.warning(
+                  "[APPEND] Source drift detected for "
+                      + className
+                      + ". Java file has changed since last run; previous counts for this file will be ignored.");
+            }
+          }
+        }
+      }
+    } catch (Exception e) {
+      logger.log(Level.WARNING, "Failed to rehydrate existing report: " + e.getMessage());
+    }
+  }
+
   static List<FileData> collectData(String sourcePath, boolean verbose) throws IOException {
     Map<String, Map<Integer, Long>> allCounters = ExecutionCountStore.getAllCountersSnapshot();
     List<SourceRoot> roots = parseSourceRoots(sourcePath);
@@ -77,6 +108,15 @@ public final class ReportGenerator {
         // Skip broken roots and continue checking the remaining ones.
       }
     }
+
+    // Record checksums for current source state so rehydration can detect drift
+    fileDataMap
+        .values()
+        .forEach(
+            data -> {
+              String className = data.getPath().replace('/', '.').replace(".java", "");
+              ExecutionCountStore.recordChecksum(className, data.getChecksum());
+            });
 
     // 2. Merge execution counts
     if (!allCounters.isEmpty()) {
@@ -240,9 +280,19 @@ public final class ReportGenerator {
 
   private static void addSourceFile(
       Map<String, FileData> fileDataMap, SourceRoot root, String relativePath, String content) {
+    String checksum = calculateChecksum(content);
     fileDataMap.put(
         root.project() + "::" + relativePath,
-        new FileData(relativePath, new HashMap<>(), content, root.project()));
+        new FileData(relativePath, new HashMap<>(), content, root.project(), checksum));
+  }
+
+  private static String calculateChecksum(String content) {
+    if (content == null || content.isEmpty()) {
+      return "0";
+    }
+    CRC32 crc = new CRC32();
+    crc.update(content.getBytes(StandardCharsets.UTF_8));
+    return Long.toHexString(crc.getValue());
   }
 
   private static Optional<String> findInDirectory(Path root, String relativePath, String filename)
@@ -522,14 +572,21 @@ public final class ReportGenerator {
     private Map<Integer, Long> counts;
     private String content;
     private String project;
+    private String checksum;
 
     public FileData() {}
 
     public FileData(String path, Map<Integer, Long> counts, String content, String project) {
+      this(path, counts, content, project, null);
+    }
+
+    public FileData(
+        String path, Map<Integer, Long> counts, String content, String project, String checksum) {
       this.path = path;
       this.counts = counts == null ? new HashMap<>() : new HashMap<>(counts);
       this.content = content;
       this.project = project == null || project.isBlank() ? "unknown" : project;
+      this.checksum = checksum;
     }
 
     public String getPath() {
@@ -562,6 +619,14 @@ public final class ReportGenerator {
 
     public void setProject(String project) {
       this.project = project == null || project.isBlank() ? "unknown" : project;
+    }
+
+    public String getChecksum() {
+      return checksum;
+    }
+
+    public void setChecksum(String checksum) {
+      this.checksum = checksum;
     }
   }
 

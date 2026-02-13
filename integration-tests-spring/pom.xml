@@ -23,7 +23,6 @@
         <dependency>
             <groupId>io.github.sfkamath</groupId>
             <artifactId>jvm-hotpath-agent</artifactId>
-            <version>${revision}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -37,6 +36,11 @@
             <version>${spring-boot.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+            <version>${spring-boot.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -44,7 +48,6 @@
             <plugin>
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
-                <version>${revision}</version>
                 <executions>
                     <execution>
                         <goals>
@@ -55,7 +58,6 @@
                 <configuration>
                     <packages>io.github.sfkamath.jvmhotpath.sample</packages>
                     <flushInterval>0</flushInterval>
-                    <verbose>false</verbose>
                     <mainClass>io.github.sfkamath.jvmhotpath.sample.MainClassProbe</mainClass>
                 </configuration>
             </plugin>

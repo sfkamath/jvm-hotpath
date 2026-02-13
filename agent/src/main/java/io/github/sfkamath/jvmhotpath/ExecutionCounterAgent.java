@@ -7,7 +7,9 @@ import java.nio.file.Path;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -23,9 +25,11 @@ public final class ExecutionCounterAgent {
   private String[] excludePackages = new String[0];
   private String outputFile = "target/site/jvm-hotpath/execution-report.html";
   private String sourcePath = "";
+  private Set<String> availableSources = new HashSet<>();
   private int flushInterval;
   private boolean verbose;
   private boolean keepAlive = true;
+  private boolean append;
 
   public static void main(String[] args) {
     if (args.length == 0) {
@@ -82,6 +86,17 @@ public final class ExecutionCounterAgent {
     }
 
     parseArguments(agentArgs);
+    this.availableSources = SourcePathScanner.scan(sourcePath);
+
+    if (append) {
+      String jsonPath = outputFile;
+      if (jsonPath.endsWith(".html")) {
+        jsonPath = jsonPath.substring(0, jsonPath.length() - 5) + ".json";
+      } else if (jsonPath.isEmpty()) {
+        jsonPath = "target/site/jvm-hotpath/execution-report.json";
+      }
+      ReportGenerator.rehydrate(jsonPath);
+    }
 
     if (flushInterval > 0) {
       Thread flushThread =
@@ -191,9 +206,12 @@ public final class ExecutionCounterAgent {
         case "keepAlive":
           keepAlive = Boolean.parseBoolean(value);
           break;
+        case "append":
+          append = Boolean.parseBoolean(value);
+          break;
         default:
           if (verbose) {
-            logger.log(Level.FINE, "Unknown agent argument: {0}={1}", new Object[]{key, value});
+            logger.log(Level.FINE, "Unknown agent argument: {0}={1}", new Object[] {key, value});
           }
           break;
       }
@@ -239,28 +257,28 @@ public final class ExecutionCounterAgent {
       if (className == null) {
         return null;
       }
-      // Don't instrument our own core classes
+
+      // 1. Filesystem-as-Truth: Only instrument if we have the source code.
+      // Handle inner classes by checking for the top-level .java file.
+      String baseName =
+          className.contains("$") ? className.substring(0, className.indexOf('$')) : className;
+      if (!availableSources.isEmpty() && !availableSources.contains(baseName + ".java")) {
+        return null;
+      }
+
+      // 2. Don't instrument our own core classes
       if (className.startsWith("io/github/sfkamath/jvmhotpath/Execution")
-          || className.startsWith("io/github/sfkamath/jvmhotpath/Report")) {
+          || className.startsWith("io/github/sfkamath/jvmhotpath/Report")
+          || className.startsWith("io/github/sfkamath/jvmhotpath/SourcePathScanner")) {
         return null;
       }
-      if (className.startsWith("java/")
-          || className.startsWith("javax/")
-          || className.startsWith("sun/")
-          || className.startsWith("jdk/")
-          || className.startsWith("com/sun/")) {
-        return null;
-      }
-      if (className.startsWith("io/micronaut/")
-          || className.startsWith("jakarta/")
-          || className.startsWith("org/slf4j/")
-          || className.startsWith("ch/qos/logback/")
-          || className.startsWith("io/netty/")) {
-        return null;
-      }
+
+      // 3. Infrastructure Safety: skip generated proxies and internal synthetic classes
       if (className.contains("$Definition")
           || className.contains("$Introspection")
-          || className.contains("$Intercepted")) {
+          || className.contains("$Intercepted")
+          || className.contains("$$EnhancerBySpringCGLIB")
+          || className.contains("$$FastClassBySpringCGLIB")) {
         return null;
       }
 
@@ -305,6 +323,4 @@ public final class ExecutionCounterAgent {
       }
     }
   }
-
-  public ExecutionCounterAgent() {}
 }

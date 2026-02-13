@@ -112,7 +112,7 @@ Add this `instrument` profile to your `pom.xml`:
             <plugin>
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
-                <version>0.2.3</version>
+                <version>0.2.4</version>
                 <executions>
                     <execution>
                         <goals>
@@ -224,21 +224,37 @@ mvn -Pinstrument jvm-hotpath:prepare-agent exec:exec \
 
 `sourcepath` accepts directories and source archives (`.jar`/`.zip`). If you provide archives manually, match source and runtime versions.
 
+#### Additive Mode (Accumulation)
+
+By default, every run overwrites the previous report. Use `append` to accumulate counts across multiple JVM runs. This is useful for complex applications where multiple distinct user journeys, batch jobs, or manual workloads need to be combined to see the full hot-path picture.
+
+```xml
+<configuration>
+    <append>true</append>
+</configuration>
+```
+
+**Drift Detection (Filesystem-as-Truth):**
+To ensure data integrity, the agent calculates a CRC32 checksum for every source file. During an `append` run:
+1. It compares the current source checksum with the one stored in the existing report.
+2. **If they match:** The previous counts are rehydrated and added to the current session.
+3. **If they differ:** The source has changed (line numbers may have shifted). The agent logs a `WARNING` and ignores previous counts for that specific file to avoid misleading reports.
+
 <a id="manual-javaagent-workflow"></a>
 ### Manual `-javaagent` Workflow
 
 Download the agent from Maven Central:
 
 ```bash
-wget https://repo1.maven.org/maven2/io/github/sfkamath/jvm-hotpath-agent/0.2.3/jvm-hotpath-agent-0.2.3.jar
-export PATH_TO_AGENT_JAR="$PWD/jvm-hotpath-agent-0.2.3.jar"
+wget https://repo1.maven.org/maven2/io/github/sfkamath/jvm-hotpath-agent/0.2.4/jvm-hotpath-agent-0.2.4.jar
+export PATH_TO_AGENT_JAR="$PWD/jvm-hotpath-agent-0.2.4.jar"
 ```
 
 Or build locally:
 
 ```bash
 mvn clean package -DskipTests
-export PATH_TO_AGENT_JAR="$PWD/agent/target/jvm-hotpath-agent-0.2.3.jar"
+export PATH_TO_AGENT_JAR="$PWD/agent/target/jvm-hotpath-agent-0.2.4.jar"
 ```
 
 Run with single-source config:
@@ -278,6 +294,7 @@ Use the table below as the full reference.
 | `sourcepath` | Agent + Plugin | `sourcepath=` | `jvm-hotpath.sourcepath` / `<sourcepath>` | Supports directories and source archives (`.jar`/`.zip`). |
 | `verbose` | Agent + Plugin | `verbose=` | `jvm-hotpath.verbose` / `<verbose>` | Extra instrumentation/flush logging. |
 | `keepAlive` | Agent + Plugin | `keepAlive=` | `jvm-hotpath.keepAlive` / `<keepAlive>` | Agent default is `true`; plugin emits when enabled. |
+| `append` | Agent + Plugin | `append=` | `jvm-hotpath.append` / `<append>` | If `true`, loads existing report counts at startup to accumulate across runs. |
 | `mainClass` | Plugin only | n/a | `jvm-hotpath.mainClass` / `<mainClass>` | Populates `exec.mainClass` for `exec:exec`. |
 | `includes` | Plugin only | n/a | `<includes>` | Resolves dependency sources and appends them to `sourcepath`. |
 | `propertyName` | Plugin only | n/a | `jvm-hotpath.propertyName` / `<propertyName>` | Target property for injected `-javaagent` string (default `argLine`). |
@@ -343,7 +360,7 @@ To build the agent JAR (shaded with all dependencies):
 mvn clean package -DskipTests
 ```
 
-The resulting JAR will be at `agent/target/jvm-hotpath-agent-0.2.3.jar`.
+The resulting JAR will be at `agent/target/jvm-hotpath-agent-0.2.4.jar`.
 
 > **Frontend build:** The report UI lives in `report-ui/` and is bundled via Vite. `mvn clean package` runs `frontend-maven-plugin` to execute `npm install`/`npm run build` inside that folder before packaging, producing a browser-safe `report-app.js` (IIFE bundle). When iterating on the UI you can run `npm install && npm run build` manually from `report-ui/` to refresh the bundled asset.
 
@@ -351,8 +368,9 @@ The resulting JAR will be at `agent/target/jvm-hotpath-agent-0.2.3.jar`.
 
 ## Internal Safety Mechanisms
 
+- **Filesystem-as-Truth Filtering**: The agent only instruments classes if their corresponding `.java` source file is found in the `sourcepath`. This automatically excludes standard libraries, third-party dependencies, and test frameworks (JUnit, Mockito) without manual configuration.
+- **Infrastructure Exclusions**: Core framework classes (e.g., `io.micronaut`, `io.netty`) and generated proxy classes (e.g., `$Definition`, `$$EnhancerBySpring`) are automatically excluded to prevent interference with application lifecycles.
 - **Non-Daemon Threads**: The agent starts a non-daemon "heartbeat" thread (configurable via `keepAlive`) to ensure the JVM stays alive for monitoring even if the application's main thread completes.
-- **Infrastructure Exclusions**: Core libraries like `io.micronaut`, `io.netty`, and generated proxy classes are automatically excluded to prevent interference with application lifecycles.
 - **Robustness**: Instrumentation is wrapped in `Throwable` blocks to prevent bytecode errors from crashing the application.
 
 ## Contributing

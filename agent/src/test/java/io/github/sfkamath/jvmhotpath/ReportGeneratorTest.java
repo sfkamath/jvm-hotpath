@@ -301,6 +301,98 @@ class ReportGeneratorTest {
     }
   }
 
+  @Test
+  void testChecksumAndRehydration() throws IOException {
+    Path tempDir = Files.createTempDirectory("rehydrate-test");
+    Path sourceRoot = tempDir.resolve("src");
+    Files.createDirectories(sourceRoot);
+    Path javaFile = sourceRoot.resolve("Service.java");
+    String content = "public class Service { public void run() {} }";
+    Files.writeString(javaFile, content);
+
+    try {
+      // 1. Generate a report to create valid rehydration data
+      ExecutionCountStore.recordExecution("Service", 10);
+      String reportPath = tempDir.resolve("report.html").toString();
+      String jsonPath = tempDir.resolve("report.json").toString();
+      ReportGenerator.generateHtmlReport(reportPath, sourceRoot.toString(), false);
+
+      // Verify checksum was generated
+      List<ReportGenerator.FileData> data =
+          ReportGenerator.collectData(sourceRoot.toString(), false);
+      String checksum = data.get(0).getChecksum();
+      assertNotNull(checksum);
+      assertNotEquals("0", checksum);
+
+      // 2. Clear store and rehydrate
+      ExecutionCountStore.reset();
+      ReportGenerator.rehydrate(jsonPath);
+      assertEquals(1L, ExecutionCountStore.getCount("Service", 10), "Should rehydrate counts");
+
+      // 3. Test rehydration WITH DRIFT (change source content)
+      Files.writeString(javaFile, content + "// drift!");
+      ExecutionCountStore.reset();
+      // Record new checksum for the drifted file
+      ReportGenerator.collectData(sourceRoot.toString(), false);
+
+      ReportGenerator.rehydrate(jsonPath);
+      assertEquals(
+          0L, ExecutionCountStore.getCount("Service", 10), "Should ignore counts due to drift");
+
+    } finally {
+      deleteRecursive(tempDir.toFile());
+    }
+  }
+
+  @Test
+  void testRehydrateWithDriftLogging() throws IOException {
+    Path tempDir = Files.createTempDirectory("rehydrate-log-test");
+    Path jsonFile = tempDir.resolve("report.json");
+    // Mock existing report with a checksum
+    Files.writeString(
+        jsonFile,
+        "{\"files\":[{\"path\":\"Drifted.java\", \"counts\":{\"1\":10}, \"checksum\":\"OLD\"}]}");
+
+    Logger logger = Logger.getLogger(ReportGenerator.class.getName());
+    List<String> warnings = new ArrayList<>();
+    Handler handler =
+        new Handler() {
+          @Override
+          public void publish(LogRecord record) {
+            if (record.getLevel() == Level.WARNING) {
+              warnings.add(record.getMessage());
+            }
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {}
+        };
+
+    try {
+      logger.addHandler(handler);
+      // Set current checksum to something different
+      ExecutionCountStore.recordChecksum("Drifted", "NEW");
+
+      ReportGenerator.rehydrate(jsonFile.toString());
+
+      assertTrue(
+          warnings.stream().anyMatch(m -> m.contains("Source drift detected for Drifted")),
+          "Expected drift warning log, but got: " + warnings);
+    } finally {
+      logger.removeHandler(handler);
+      deleteRecursive(tempDir.toFile());
+    }
+  }
+
+  @Test
+  void testRehydrateFromNonExistentFile() {
+    // Should just return silently
+    ReportGenerator.rehydrate("non-existent.json");
+  }
+
   private void deleteRecursive(File file) {
     File[] children = file.listFiles();
     if (children != null) {

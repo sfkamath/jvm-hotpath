@@ -77,4 +77,37 @@ class ExecutionCountStoreTest {
 
     assertEquals(threads * incrementsPerThread, ExecutionCountStore.getCount("ThreadSafeTest", 1));
   }
+
+  @Test
+  void testSeedCounts() {
+    ExecutionCountStore.recordChecksum("Test", "CRC123");
+    boolean seeded = ExecutionCountStore.seedCounts("Test", "CRC123", Map.of(10, 5L));
+
+    assertTrue(seeded);
+    assertEquals(5, ExecutionCountStore.getCount("Test", 10));
+
+    // Test additive seeding
+    ExecutionCountStore.seedCounts("Test", "CRC123", Map.of(10, 2L));
+    assertEquals(7, ExecutionCountStore.getCount("Test", 10));
+  }
+
+  @Test
+  void testSeedCountsWithDrift() {
+    ExecutionCountStore.recordChecksum("Test", "NEW_CRC");
+
+    // Attempt to seed with an old CRC
+    boolean seeded = ExecutionCountStore.seedCounts("Test", "OLD_CRC", Map.of(10, 5L));
+
+    assertFalse(seeded, "Should ignore counts from drifting source");
+    assertEquals(0, ExecutionCountStore.getCount("Test", 10));
+  }
+
+  @Test
+  void testSeedCountsWithoutExistingChecksum() {
+    // If we haven't scanned the source yet, we accept the seed (we'll validate it later when
+    // scanning)
+    boolean seeded = ExecutionCountStore.seedCounts("Unknown", "SOME_CRC", Map.of(1, 10L));
+    assertTrue(seeded);
+    assertEquals(10, ExecutionCountStore.getCount("Unknown", 1));
+  }
 }
