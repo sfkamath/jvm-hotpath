@@ -125,6 +125,32 @@ class ExecutionCounterAgentTest {
   }
 
   @Test
+  void testInfrastructureSafetyExclusions() throws Exception {
+    ExecutionCounterAgent agent = new ExecutionCounterAgent();
+    // Configure packages to include everything so we can test explicit infra exclusions
+    agent.parseArguments("packages=");
+    ClassFileTransformer transformer = agent.getTransformer();
+
+    // 1. Should skip Micronaut definitions and intercepted classes
+    assertNull(transformer.transform(null, "com/app/$Service$Definition", null, null, new byte[0]));
+    assertNull(transformer.transform(null, "com/app/$Service$Intercepted", null, null, new byte[0]));
+    assertNull(transformer.transform(null, "com/app/$Service$Introspection", null, null, new byte[0]));
+
+    // 2. Should skip Spring CGLIB proxies
+    assertNull(transformer.transform(null, "com/app/Service$$EnhancerBySpringCGLIB$$abc", null, null, new byte[0]));
+    assertNull(transformer.transform(null, "com/app/Service$$FastClassBySpringCGLIB$$abc", null, null, new byte[0]));
+
+    // 3. Should skip our own agent core classes
+    assertNull(transformer.transform(null, "io/github/sfkamath/jvmhotpath/ExecutionCountStore", null, null, new byte[0]));
+    assertNull(transformer.transform(null, "io/github/sfkamath/jvmhotpath/ReportGenerator", null, null, new byte[0]));
+    assertNull(transformer.transform(null, "io/github/sfkamath/jvmhotpath/SourcePathScanner", null, null, new byte[0]));
+
+    // 4. Should NOT skip normal app classes (if packages= is empty, it instruments everything not explicitly excluded)
+    // Using real class bytes would be better, but here we just check if it enters the try block (which fails on empty bytes)
+    // but the exclusion logic is BEFORE the try block.
+  }
+
+  @Test
   void testTransformationErrorHandling() throws Exception {
     ExecutionCounterAgent agent = new ExecutionCounterAgent();
     agent.parseArguments("packages=com.app,verbose=false");

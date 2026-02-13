@@ -270,6 +270,15 @@ public final class ExecutionCounterAgent {
         return null;
       }
 
+      // 3. Infrastructure Safety: skip generated proxies and internal synthetic classes
+      if (className.contains("$Definition")
+          || className.contains("$Introspection")
+          || className.contains("$Intercepted")
+          || className.contains("$$EnhancerBySpringCGLIB")
+          || className.contains("$$FastClassBySpringCGLIB")) {
+        return null;
+      }
+
       for (String exclude : excludePackages) {
         if (className.startsWith(exclude)) {
           logger.log(Level.FINEST, "[INSTRUMENT] Skipped (exclude): {0}", className);
