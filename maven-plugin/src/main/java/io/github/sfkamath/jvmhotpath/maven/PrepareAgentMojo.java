@@ -81,7 +81,10 @@ public class PrepareAgentMojo extends AbstractMojo {
   @Parameter(property = "jvm-hotpath.append", defaultValue = "false")
   private boolean append;
 
-  /** Name of the property to set. Default is "argLine" (used by Surefire/Failsafe). */
+  /**
+   * Name of the property to set. Default is "argLine" (used by Surefire/Failsafe). When
+   * instrumentTests is false, the plugin will instead use "jvmHotpathAgentArg" unless overridden.
+   */
   @Parameter(property = "jvm-hotpath.propertyName", defaultValue = "argLine")
   private String propertyName;
 
@@ -91,6 +94,10 @@ public class PrepareAgentMojo extends AbstractMojo {
    */
   @Parameter(property = "jvm-hotpath.mainClass")
   private String mainClass;
+
+  /** Attach the agent to test tasks (Surefire/Failsafe). Default false. */
+  @Parameter(property = "jvm-hotpath.instrumentTests", defaultValue = "false")
+  private boolean instrumentTests;
 
   @Parameter(property = "jvm-hotpath.skip", defaultValue = "false")
   private boolean skip;
@@ -226,12 +233,13 @@ public class PrepareAgentMojo extends AbstractMojo {
     }
 
     // --- Set Property ---
-    String existing = project.getProperties().getProperty(propertyName);
+    String effectivePropertyName = resolvePropertyName();
+    String existing = project.getProperties().getProperty(effectivePropertyName);
     if (existing != null && !existing.isEmpty()) {
       agentString = agentString + " " + existing;
     }
 
-    project.getProperties().setProperty(propertyName, agentString);
+    project.getProperties().setProperty(effectivePropertyName, agentString);
     populateExecMainClass();
     validateExecMainClassIfNeeded();
     getLog().info("JVM Hotpath configured.");
@@ -240,7 +248,17 @@ public class PrepareAgentMojo extends AbstractMojo {
       getLog().info("Packages: " + finalPackages);
       getLog().info("Sourcepath: " + finalSourcepath);
     }
-    getLog().debug("Set " + propertyName + " to: " + agentString);
+    getLog().debug("Set " + effectivePropertyName + " to: " + agentString);
+  }
+
+  private String resolvePropertyName() {
+    if (propertyName == null || propertyName.trim().isEmpty()) {
+      return "argLine";
+    }
+    if (!instrumentTests && "argLine".equals(propertyName)) {
+      return "jvmHotpathAgentArg";
+    }
+    return propertyName;
   }
 
   private void populateExecMainClass() {

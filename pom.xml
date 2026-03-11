@@ -40,10 +40,11 @@
     <modules>
         <module>agent</module>
         <module>maven-plugin</module>
+        <module>gradle-plugin</module>
     </modules>
 
     <properties>
-        <revision>0.2.4</revision>
+        <revision>0.2.5</revision>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
@@ -51,15 +52,15 @@
 
         <!-- Dependencies -->
         <asm.version>9.9.1</asm.version>
-        <jackson.version>2.21.0</jackson.version>
+        <jackson.version>2.21.1</jackson.version>
         <junit.version>5.14.2</junit.version>
         <maven-api.version>3.9.12</maven-api.version>
-        <maven-resolver.version>2.0.14</maven-resolver.version>
+        <maven-resolver.version>2.0.16</maven-resolver.version>
         <slf4j.version>1.7.36</slf4j.version>
 
         <!-- Core Plugins -->
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
-        <maven-failsafe-plugin.version>3.5.4</maven-failsafe-plugin.version>
+        <maven-failsafe-plugin.version>3.5.5</maven-failsafe-plugin.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
         <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
         <maven-shade-plugin.version>3.6.1</maven-shade-plugin.version>
@@ -87,6 +88,11 @@
             <dependency>
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-agent</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.sfkamath</groupId>
+                <artifactId>jvm-hotpath-gradle-plugin</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -154,6 +160,11 @@
                 <plugin>
                     <groupId>io.github.sfkamath</groupId>
                     <artifactId>jvm-hotpath-maven-plugin</artifactId>
+                    <version>${project.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>io.github.sfkamath</groupId>
+                    <artifactId>jvm-hotpath-gradle-plugin</artifactId>
                     <version>${project.version}</version>
                 </plugin>
                 <plugin>

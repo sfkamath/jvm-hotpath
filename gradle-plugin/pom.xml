@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.sfkamath</groupId>
+        <artifactId>jvm-hotpath-parent</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>jvm-hotpath-gradle-plugin</artifactId>
+    <packaging>jar</packaging>
+
+    <name>JVM Hotpath Gradle Plugin</name>
+    <description>Native Gradle plugin for JVM Hotpath. Automatically attaches the execution analysis agent to JavaExec tasks (and optionally Test tasks).</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.sfkamath</groupId>
+            <artifactId>jvm-hotpath-agent</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Skip compilation - this module is built with Gradle, not Maven -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <skipMain>true</skipMain>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
