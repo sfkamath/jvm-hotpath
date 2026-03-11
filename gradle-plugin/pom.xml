@@ -32,12 +32,19 @@
 
     <build>
         <plugins>
-            <!-- Skip compilation - this module is built with Gradle, not Maven -->
+            <!-- Skip compilation and javadoc - this module is built with Gradle, not Maven -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <skipMain>true</skipMain>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
                     <skip>true</skip>
                 </configuration>
             </plugin>
