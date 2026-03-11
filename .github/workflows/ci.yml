@@ -118,6 +118,16 @@ jobs:
           java-version: '21'
           distribution: corretto
 
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ github.ref_name }}
+          restore-keys: |
+            maven-${{ runner.os }}-
+
+      - name: Install agent to local Maven repo
+        run: mvn install -pl agent -am -Drevision=${{ needs.publish.outputs.version }} -DskipTests --quiet
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:

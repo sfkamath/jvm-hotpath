@@ -7,7 +7,7 @@
 - Gradle: version is passed via `-PpluginVersion=` from the Maven publish job's output
 - `gradle.properties` holds the local development version (`pluginVersion=X.Y.Z`)
 - **Commit prefix determines version bump** (conventional commits):
-  - `fix:` → patch (0.2.4 → 0.2.5)
+  - `fix:` → patch (0.2.5 → 0.2.6)
   - `feat:` → minor (0.2.4 → 0.3.0)
   - `BREAKING CHANGE` in body → major (0.2.4 → 1.0.0)
   - Ensure the commit prefix matches the intended version bump
