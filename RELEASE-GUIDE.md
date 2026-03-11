@@ -10,7 +10,7 @@
   - `fix:` → patch (0.2.5 → 0.2.6)
   - `feat:` → minor (0.2.4 → 0.3.0)
   - `BREAKING CHANGE` in body → major (0.2.4 → 1.0.0)
-  - Ensure the commit prefix matches the intended version bump
+  - Ensure the commit prefix matches the intended version bump (use `bump-version.sh` script if needed)
 
 ## Pre-Release Checklist (on the release branch)
 
