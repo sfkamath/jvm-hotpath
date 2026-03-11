@@ -6,6 +6,7 @@
 
 [![Java CI](https://github.com/sfkamath/jvm-hotpath/actions/workflows/ci.yml/badge.svg)](https://github.com/sfkamath/jvm-hotpath/actions/workflows/ci.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.sfkamath/jvm-hotpath-agent.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.sfkamath%22%20AND%20a:%22jvm-hotpath-agent%22)
+[![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.sfkamath.jvm-hotpath)](https://plugins.gradle.org/plugin/io.github.sfkamath.jvm-hotpath)
 [![Version](https://img.shields.io/github/v/tag/sfkamath/jvm-hotpath)](https://github.com/sfkamath/jvm-hotpath/tags)
 [![License](https://img.shields.io/github/license/sfkamath/jvm-hotpath)](LICENSE)
 
@@ -100,7 +101,47 @@ The agent is compiled to Java 11 bytecode for maximum compatibility. Java 25 is 
 
 ## Quick Start
 
-### Maven Plugin (Recommended)
+### Gradle Plugin (Recommended for Gradle Users)
+
+Add the plugin to your build:
+
+Kotlin DSL (`build.gradle.kts`):
+
+```kotlin
+plugins {
+    java
+    id("io.github.sfkamath.jvm-hotpath") version "0.2.5"
+}
+
+jvmHotpath {
+    packages.set("com.example")
+    flushInterval.set(5)
+}
+```
+
+Groovy DSL (`build.gradle`):
+
+```groovy
+plugins {
+    id 'java'
+    id 'io.github.sfkamath.jvm-hotpath' version '0.2.5'
+}
+
+jvmHotpath {
+    packages.set('com.example')
+    flushInterval.set(5)
+}
+```
+
+Then run your application:
+
+```bash
+./gradlew run
+```
+
+Report output: `target/site/jvm-hotpath/execution-report.html`
+
+### Maven Plugin (Recommended for Maven Users)
 
 Add this `instrument` profile to your `pom.xml`:
 
@@ -112,7 +153,7 @@ Add this `instrument` profile to your `pom.xml`:
             <plugin>
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
-                <version>0.2.4</version>
+                <version>0.2.5</version>
                 <executions>
                     <execution>
                         <goals>
@@ -130,7 +171,7 @@ Add this `instrument` profile to your `pom.xml`:
                 <version>3.5.0</version>
                 <configuration>
                     <executable>java</executable>
-                    <commandlineArgs>${argLine} -classpath %classpath ${exec.mainClass}</commandlineArgs>
+                    <commandlineArgs>${jvmHotpathAgentArg} -classpath %classpath ${exec.mainClass}</commandlineArgs>
                 </configuration>
             </plugin>
         </plugins>
@@ -154,8 +195,52 @@ Run the app with `-javaagent` to instrument without the Maven plugin. For more d
 
 ## Workflows
 
-Choose either the Maven plugin workflow (recommended) or the manual `-javaagent` workflow.
-Gradle: see [GRADLE.md](GRADLE.md).
+Choose either the Gradle plugin, Maven plugin, or manual `-javaagent` workflow.
+
+### Gradle Plugin Workflow
+
+Apply the plugin as shown in Quick Start. The plugin automatically:
+- Attaches the agent to all `JavaExec` tasks (including `run`, `bootRun`, etc.)
+- Collects source paths from the `main` source set across all subprojects
+- Seeds `packages` with your project's `groupId`
+
+By default, test tasks are not instrumented. To include tests, set `instrumentTests` to `true`.
+
+Common Gradle plugin usage:
+
+Kotlin DSL:
+
+```kotlin
+jvmHotpath {
+    packages.set("com.example,com.other.module")
+    exclude.set("com.example.generated.*")
+    flushInterval.set(5)
+    output.set(layout.buildDirectory.file("site/jvm-hotpath/execution-report.html").get().asFile.path)
+    sourcepath.set("module-a/src/main/java:module-a/target/generated-sources")
+    verbose.set(true)
+    keepAlive.set(false)
+    append.set(true)
+    instrumentTests.set(true)
+    skip.set(false)
+}
+```
+
+Groovy DSL:
+
+```groovy
+jvmHotpath {
+    packages.set('com.example,com.other.module')
+    exclude.set('com.example.generated.*')
+    flushInterval.set(5)
+    output.set("${layout.buildDirectory.get()}/site/jvm-hotpath/execution-report.html")
+    sourcepath.set('module-a/src/main/java:module-a/target/generated-sources')
+    verbose.set(true)
+    keepAlive.set(false)
+    append.set(true)
+    instrumentTests.set(true)
+    skip.set(false)
+}
+```
 
 ### Maven Plugin Workflow
 
@@ -173,6 +258,16 @@ For `exec:exec`, `prepare-agent` resolves `exec.mainClass` in this order:
 If no main class can be resolved, `prepare-agent` fails fast. This validation is skipped for non-`exec` runs (for example test-only runs).
 
 Common Maven plugin extensions:
+
+#### Instrument Tests
+
+By default, tests are not instrumented. To include tests (Surefire/Failsafe), set:
+
+```bash
+mvn -Djvm-hotpath.instrumentTests=true ...
+```
+
+When tests are not instrumented, the plugin sets the agent string into `jvmHotpathAgentArg` instead of `argLine`.
 
 #### Add More Packages or Source Roots
 
@@ -246,15 +341,15 @@ To ensure data integrity, the agent calculates a CRC32 checksum for every source
 Download the agent from Maven Central:
 
 ```bash
-wget https://repo1.maven.org/maven2/io/github/sfkamath/jvm-hotpath-agent/0.2.4/jvm-hotpath-agent-0.2.4.jar
-export PATH_TO_AGENT_JAR="$PWD/jvm-hotpath-agent-0.2.4.jar"
+wget https://repo1.maven.org/maven2/io/github/sfkamath/jvm-hotpath-agent/0.2.5/jvm-hotpath-agent-0.2.5.jar
+export PATH_TO_AGENT_JAR="$PWD/jvm-hotpath-agent-0.2.5.jar"
 ```
 
 Or build locally:
 
 ```bash
 mvn clean package -DskipTests
-export PATH_TO_AGENT_JAR="$PWD/agent/target/jvm-hotpath-agent-0.2.4.jar"
+export PATH_TO_AGENT_JAR="$PWD/agent/target/jvm-hotpath-agent-0.2.5.jar"
 ```
 
 Run with single-source config:
@@ -295,9 +390,10 @@ Use the table below as the full reference.
 | `verbose` | Agent + Plugin | `verbose=` | `jvm-hotpath.verbose` / `<verbose>` | Extra instrumentation/flush logging. |
 | `keepAlive` | Agent + Plugin | `keepAlive=` | `jvm-hotpath.keepAlive` / `<keepAlive>` | Agent default is `true`; plugin emits when enabled. |
 | `append` | Agent + Plugin | `append=` | `jvm-hotpath.append` / `<append>` | If `true`, loads existing report counts at startup to accumulate across runs. |
+| `instrumentTests` | Plugin only | n/a | `jvm-hotpath.instrumentTests` / `<instrumentTests>` | Attach the agent to test tasks. Default `false`. |
 | `mainClass` | Plugin only | n/a | `jvm-hotpath.mainClass` / `<mainClass>` | Populates `exec.mainClass` for `exec:exec`. |
 | `includes` | Plugin only | n/a | `<includes>` | Resolves dependency sources and appends them to `sourcepath`. |
-| `propertyName` | Plugin only | n/a | `jvm-hotpath.propertyName` / `<propertyName>` | Target property for injected `-javaagent` string (default `argLine`). |
+| `propertyName` | Plugin only | n/a | `jvm-hotpath.propertyName` / `<propertyName>` | Target property for injected `-javaagent` string (default `argLine`, or `jvmHotpathAgentArg` when `instrumentTests=false`). |
 | `skip` | Plugin only | n/a | `jvm-hotpath.skip` / `<skip>` | Skips plugin execution. |
 
 ## Report and Output
@@ -360,7 +456,7 @@ To build the agent JAR (shaded with all dependencies):
 mvn clean package -DskipTests
 ```
 
-The resulting JAR will be at `agent/target/jvm-hotpath-agent-0.2.4.jar`.
+The resulting JAR will be at `agent/target/jvm-hotpath-agent-0.2.5.jar`.
 
 > **Frontend build:** The report UI lives in `report-ui/` and is bundled via Vite. `mvn clean package` runs `frontend-maven-plugin` to execute `npm install`/`npm run build` inside that folder before packaging, producing a browser-safe `report-app.js` (IIFE bundle). When iterating on the UI you can run `npm install && npm run build` manually from `report-ui/` to refresh the bundled asset.
 

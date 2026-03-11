@@ -59,6 +59,7 @@
                     <packages>io.github.sfkamath.jvmhotpath.sample</packages>
                     <flushInterval>0</flushInterval>
                     <mainClass>io.github.sfkamath.jvmhotpath.sample.MainClassProbe</mainClass>
+                    <instrumentTests>true</instrumentTests>
                 </configuration>
             </plugin>
             <plugin>

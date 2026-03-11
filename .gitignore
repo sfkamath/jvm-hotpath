@@ -1,6 +1,5 @@
 **/node_modules/
 **/dist/
-target/
 **/target/
 *.versionsBackup
 release.properties
@@ -12,3 +11,12 @@ release.properties
 .flattened-pom.xml
 **/playwright-report/
 **/test-results/
+workspace/
+.gradle/
+build/
+!.mvn/wrapper/maven-wrapper.jar
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+!**/src/main/**/build/
+!**/src/test/**/build/
