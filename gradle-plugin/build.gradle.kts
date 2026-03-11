@@ -32,7 +32,7 @@ gradlePlugin {
             implementationClass = "io.github.sfkamath.jvmhotpath.gradle.JvmHotpathPlugin"
             displayName = "JVM Hotpath"
             description = "Real-time line-level execution frequency analysis for JVM"
-            tags = listOf("profiling", "hotpath", "analysis", "gradle", "java")
+            tags = listOf("execution-counts", "hotpath", "runtime-analysis", "jvm", "asm", "bytecode", "java-agent")
         }
     }
 }
