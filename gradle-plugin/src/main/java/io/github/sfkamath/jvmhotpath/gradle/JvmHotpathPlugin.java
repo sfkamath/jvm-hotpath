@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.util.LinkedHashSet;
 import java.util.Properties;
 import java.util.Set;
+import org.gradle.api.JavaVersion;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -33,6 +34,36 @@ public class JvmHotpathPlugin implements Plugin<Project> {
     project
         .getDependencies()
         .add(agentConfig.getName(), "io.github.sfkamath:jvm-hotpath-agent:" + agentVersion);
+
+    project
+        .getTasks()
+        .register(
+            "hotpathHelp",
+            task -> {
+              task.setGroup("Help");
+              task.setDescription(
+                  "Prints a jq query for analysing execution-report.json from the terminal.");
+              task.doLast(
+                  t -> {
+                    String reportPath = extension.getOutput().getOrElse("");
+                    String examplePath =
+                        reportPath.isEmpty()
+                            ? "path/to/execution-report.json"
+                            : reportPath.replace(".html", ".json");
+                    t.getLogger()
+                        .lifecycle(
+                            "\nJVM Hotpath — CLI Analysis"
+                                + "\n--------------------------"
+                                + "\nTop 20 hottest lines across all instrumented files:\n"
+                                + "\n  jq '[.files[] | select((.counts | length) > 0)"
+                                + " | {path: .path, counts: .counts | to_entries}"
+                                + " | .counts[] as $c | {file: .path, line: $c.key|tonumber, hits: $c.value}]"
+                                + " | sort_by(.hits) | reverse | .[0:20]' "
+                                + examplePath
+                                + "\n\nFor a full breakdown of the query see:"
+                                + "\n  https://github.com/sfkamath/jvm-hotpath#cli-analysis-with-jq\n");
+                  });
+            });
 
     project.afterEvaluate(
         p -> {
@@ -66,6 +97,7 @@ public class JvmHotpathPlugin implements Plugin<Project> {
             configureTestTasks(p, extension, fullAgentArg);
           }
           configureJavaExecTasks(p, extension, fullAgentArg);
+          warnIfJmhAsmIncompatible(p);
         });
   }
 
@@ -219,6 +251,76 @@ public class JvmHotpathPlugin implements Plugin<Project> {
     }
 
     return String.join(System.getProperty("path.separator"), sourcePaths);
+  }
+
+  /**
+   * When JMH is present, resolves its runtime classpath to find the bundled ASM version and warns
+   * if it is too old to instrument the current JVM's class file format. JMH ships its own ASM
+   * copy; if it is older than what the running JDK requires, the agent will throw
+   * "Unsupported class file major version" inside benchmark forks.
+   *
+   * <p>ASM 9.x support matrix: minor version N supports up to Java (16 + N).
+   * e.g. ASM 9.0 → Java 16, ASM 9.1 → Java 17, ASM 9.5 → Java 21.
+   */
+  private void warnIfJmhAsmIncompatible(Project project) {
+    if (!project.getPlugins().hasPlugin("me.champeau.jmh")) {
+      return;
+    }
+
+    Configuration jmhRuntime = project.getConfigurations().findByName("jmhRuntimeClasspath");
+    if (jmhRuntime == null) {
+      return;
+    }
+
+    for (File f : jmhRuntime) {
+      String name = f.getName();
+      // Match core ASM jar only: asm-9.0.jar, asm-9.9.1.jar — not asm-tree-*, asm-commons-*, etc.
+      if (!name.matches("asm-\\d.*\\.jar")) {
+        continue;
+      }
+
+      // Strip "asm-" prefix and ".jar" suffix to get the version string
+      String version = name.substring(4, name.length() - 4);
+      String[] parts = version.split("\\.");
+      if (parts.length < 2) {
+        return;
+      }
+
+      int currentJava = Integer.parseInt(JavaVersion.current().getMajorVersion());
+      int maxJava = maxJavaSupportedByAsm(version);
+
+      if (maxJava >= 0 && currentJava > maxJava) {
+        project.getLogger().warn(
+            "[jvm-hotpath] JMH is using ASM {} (supports up to Java {}) but you are running"
+                + " Java {}. The jvm-hotpath agent will throw 'Unsupported class file major"
+                + " version' inside JMH benchmark forks. Force ASM 9.{}+ in your jmh"
+                + " dependencies — see https://github.com/sfkamath/jvm-hotpath#jmh-integration",
+            version, maxJava, currentJava, (currentJava - 16));
+      }
+      return; // only need the core ASM jar
+    }
+  }
+
+  /**
+   * Returns the maximum Java version supported by the given ASM version string, or -1 if the
+   * version cannot be parsed. ASM 9.x supports Java (16 + minor): e.g. 9.0 → 16, 9.1 → 17.
+   * Pre-9.x ASM is treated as supporting at most Java 15.
+   */
+  static int maxJavaSupportedByAsm(String asmVersion) {
+    String[] parts = asmVersion.split("\\.");
+    if (parts.length < 2) {
+      return -1;
+    }
+    try {
+      int major = Integer.parseInt(parts[0]);
+      int minor = Integer.parseInt(parts[1]);
+      if (major == 9) {
+        return 16 + minor;
+      }
+      return major < 9 ? 15 : Integer.MAX_VALUE;
+    } catch (NumberFormatException e) {
+      return -1;
+    }
   }
 
   private String loadPluginVersion() {

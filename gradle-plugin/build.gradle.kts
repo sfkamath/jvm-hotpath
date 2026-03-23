@@ -20,6 +20,12 @@ repositories {
 
 dependencies {
     implementation("io.github.sfkamath:jvm-hotpath-agent:${version}")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 gradlePlugin {
