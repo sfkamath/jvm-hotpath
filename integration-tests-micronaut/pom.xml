@@ -33,6 +33,13 @@
             <version>4.3.2</version>
         </dependency>
         <dependency>
+            <groupId>org.dizitart</groupId>
+            <artifactId>nitrite</artifactId>
+            <version>4.3.2</version>
+            <classifier>sources</classifier>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>io.micronaut</groupId>
             <artifactId>micronaut-http-server-netty</artifactId>
             <version>${micronaut.version}</version>
@@ -77,6 +84,19 @@
                 </configuration>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>resolve-nitrite-sources</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
                 <executions>
@@ -88,7 +108,7 @@
                 </executions>
                 <configuration>
                     <packages>io.github.sfkamath.jvmhotpath.sample.micronaut,org.dizitart.no2</packages>
-                    <sourcepath>src/main/java:/Users/sfk/Developer/nitrite-java/nitrite/src/main/java</sourcepath>
+                    <sourcepath>src/main/java:${org.dizitart:nitrite:jar:sources}</sourcepath>
                     <verbose>true</verbose>
                     <flushInterval>0</flushInterval>
                     <mainClass>io.github.sfkamath.jvmhotpath.sample.micronaut.MainClassProbe</mainClass>
