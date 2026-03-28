@@ -46,6 +46,10 @@ jobs:
             mvn clean install -ntp
           fi
 
+      - name: Install agent to local Maven repo
+        if: matrix.java == 21
+        run: mvn install -pl agent -am -Drevision=0.0.0-test -DskipTests --quiet
+
       - name: Setup Gradle
         if: matrix.java == 21
         uses: gradle/actions/setup-gradle@v4
