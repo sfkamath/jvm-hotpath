@@ -286,32 +286,36 @@ public class JvmHotpathPlugin implements Plugin<Project> {
       return;
     }
 
-    for (File f : jmhRuntime) {
-      String name = f.getName();
-      // Match core ASM jar only: asm-9.0.jar, asm-9.9.1.jar — not asm-tree-*, asm-commons-*, etc.
-      if (!name.matches("asm-\\d.*\\.jar")) {
-        continue;
-      }
+    try {
+      for (File f : jmhRuntime) {
+        String name = f.getName();
+        // Match core ASM jar only: asm-9.0.jar, asm-9.9.1.jar — not asm-tree-*, asm-commons-*, etc.
+        if (!name.matches("asm-\\d.*\\.jar")) {
+          continue;
+        }
 
-      // Strip "asm-" prefix and ".jar" suffix to get the version string
-      String version = name.substring(4, name.length() - 4);
-      String[] parts = version.split("\\.");
-      if (parts.length < 2) {
-        return;
-      }
+        // Strip "asm-" prefix and ".jar" suffix to get the version string
+        String version = name.substring(4, name.length() - 4);
+        String[] parts = version.split("\\.");
+        if (parts.length < 2) {
+          return;
+        }
 
-      int currentJava = Integer.parseInt(JavaVersion.current().getMajorVersion());
-      int maxJava = maxJavaSupportedByAsm(version);
+        int currentJava = Integer.parseInt(JavaVersion.current().getMajorVersion());
+        int maxJava = maxJavaSupportedByAsm(version);
 
-      if (maxJava >= 0 && currentJava > maxJava) {
-        project.getLogger().warn(
-            "[jvm-hotpath] JMH is using ASM {} (supports up to Java {}) but you are running"
-                + " Java {}. The jvm-hotpath agent will throw 'Unsupported class file major"
-                + " version' inside JMH benchmark forks. Force ASM 9.{}+ in your jmh"
-                + " dependencies — see https://github.com/sfkamath/jvm-hotpath#jmh-integration",
-            version, maxJava, currentJava, (currentJava - 16));
+        if (maxJava >= 0 && currentJava > maxJava) {
+          project.getLogger().warn(
+              "[jvm-hotpath] JMH is using ASM {} (supports up to Java {}) but you are running"
+                  + " Java {}. The jvm-hotpath agent will throw 'Unsupported class file major"
+                  + " version' inside JMH benchmark forks. Force ASM 9.{}+ in your jmh"
+                  + " dependencies — see https://github.com/sfkamath/jvm-hotpath#jmh-integration",
+              version, maxJava, currentJava, (currentJava - 16));
+        }
+        return; // only need the core ASM jar
       }
-      return; // only need the core ASM jar
+    } catch (Exception e) {
+      project.getLogger().debug("[jvm-hotpath] Could not check JMH ASM compatibility: {}", e.getMessage());
     }
   }
 
