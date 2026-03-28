@@ -23,21 +23,13 @@ jobs:
         with:
           java-version: ${{ matrix.java }}
           distribution: corretto
-
-      - uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: maven-${{ runner.os }}-${{ github.ref_name }}
-          restore-keys: |
-            maven-${{ runner.os }}-
+          cache: 'maven'
 
       - uses: actions/cache@v4
         if: matrix.java >= 17
         with:
-          path: |
-            ~/.cache/ms-playwright
-            ~/.npm
-          key: playwright-${{ runner.os }}-${{ github.ref_name }}
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.java }}
           restore-keys: |
             playwright-${{ runner.os }}-
 

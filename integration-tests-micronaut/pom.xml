@@ -109,7 +109,7 @@
                 <configuration>
                     <packages>io.github.sfkamath.jvmhotpath.sample.micronaut,org.dizitart.no2</packages>
                     <sourcepath>src/main/java:${org.dizitart:nitrite:jar:sources}</sourcepath>
-                    <verbose>true</verbose>
+                    <verbose>false</verbose>
                     <flushInterval>0</flushInterval>
                     <mainClass>io.github.sfkamath.jvmhotpath.sample.micronaut.MainClassProbe</mainClass>
                     <instrumentTests>true</instrumentTests>
