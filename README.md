@@ -275,6 +275,7 @@ Two settings are critical for JMH forks:
 - **`append=true`** — each fork appends its counts to the same file rather than overwriting it
 - **`flushInterval=1`** — flushes data to disk every second, ensuring counts survive when the fork is killed after each iteration
 
+<a id="resolving-the-asm-version-conflict"></a>
 **Step 2 — Resolve the ASM version conflict**
 
 JMH bundles its own (older) copy of ASM. When the jvm-hotpath agent attempts to instrument Java 17+ bytecode inside a fork, it picks up JMH's ASM and crashes with `Unsupported class file major version`. Fix this by forcing a newer ASM version into the `jmh` dependency configuration:
