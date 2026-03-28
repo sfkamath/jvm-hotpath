@@ -47,11 +47,13 @@ jobs:
           fi
 
       - name: Setup Gradle
+        if: matrix.java == 21
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: wrapper
 
       - name: Compile Gradle plugin
+        if: matrix.java == 21
         run: cd gradle-plugin && ../gradlew classes --no-daemon -PpluginVersion=0.0.0-test
 
   publish:
