@@ -14,8 +14,8 @@
     <artifactId>jvm-hotpath-integration-tests-micronaut</artifactId>
 
     <properties>
-        <micronaut.version>4.10.15</micronaut.version>
-        <micronaut-test.version>4.10.2</micronaut-test.version>
+        <micronaut.version>4.10.18</micronaut.version>
+        <micronaut-test.version>4.10.3</micronaut-test.version>
         <jakarta-annotation.version>2.1.1</jakarta-annotation.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <maven.install.skip>true</maven.install.skip>
