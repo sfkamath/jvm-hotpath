@@ -88,6 +88,8 @@ public final class ExecutionCounterAgent {
     parseArguments(agentArgs);
     this.availableSources = SourcePathScanner.scan(sourcePath);
 
+    inst.addTransformer(new ExecutionCountTransformer());
+
     if (append) {
       String jsonPath = outputFile;
       if (jsonPath.endsWith(".html")) {
@@ -95,7 +97,7 @@ public final class ExecutionCounterAgent {
       } else if (jsonPath.isEmpty()) {
         jsonPath = "target/site/jvm-hotpath/execution-report.json";
       }
-      ReportGenerator.rehydrate(jsonPath);
+      ReportGenerator.rehydrate(jsonPath, sourcePath);
     }
 
     if (flushInterval > 0) {
@@ -122,8 +124,6 @@ public final class ExecutionCounterAgent {
       flushThread.setDaemon(true);
       flushThread.start();
     }
-
-    inst.addTransformer(new ExecutionCountTransformer());
 
     Runtime.getRuntime()
         .addShutdownHook(
@@ -308,7 +308,7 @@ public final class ExecutionCounterAgent {
           logger.log(Level.INFO, "[INSTRUMENT] Attempting: {0}", className);
         }
         ClassReader cr = new ClassReader(classfileBuffer);
-        ClassWriter cw = new ClassWriter(cr, ClassWriter.COMPUTE_FRAMES);
+        ClassWriter cw = new ClassWriter(cr, ClassWriter.COMPUTE_MAXS);
         cr.accept(new ExecutionCountClassVisitor(cw, className), ClassReader.EXPAND_FRAMES);
         byte[] result = cw.toByteArray();
         if (verbose) {
@@ -323,4 +323,5 @@ public final class ExecutionCounterAgent {
       }
     }
   }
+
 }

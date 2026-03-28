@@ -324,18 +324,16 @@ class ReportGeneratorTest {
       assertNotNull(checksum);
       assertNotEquals("0", checksum);
 
-      // 2. Clear store and rehydrate
+      // 2. Clear store and rehydrate — no pre-populated checksums (real append mode scenario)
       ExecutionCountStore.reset();
-      ReportGenerator.rehydrate(jsonPath);
+      ReportGenerator.rehydrate(jsonPath, sourceRoot.toString());
       assertEquals(1L, ExecutionCountStore.getCount("Service", 10), "Should rehydrate counts");
 
-      // 3. Test rehydration WITH DRIFT (change source content)
+      // 3. Test rehydration WITH DRIFT (change source content, no pre-populated checksums)
       Files.writeString(javaFile, content + "// drift!");
       ExecutionCountStore.reset();
-      // Record new checksum for the drifted file
-      ReportGenerator.collectData(sourceRoot.toString(), false);
 
-      ReportGenerator.rehydrate(jsonPath);
+      ReportGenerator.rehydrate(jsonPath, sourceRoot.toString());
       assertEquals(
           0L, ExecutionCountStore.getCount("Service", 10), "Should ignore counts due to drift");
 
@@ -347,8 +345,11 @@ class ReportGeneratorTest {
   @Test
   void testRehydrateWithDriftLogging() throws IOException {
     Path tempDir = Files.createTempDirectory("rehydrate-log-test");
+    Path sourceRoot = tempDir.resolve("src");
+    Files.createDirectories(sourceRoot);
+    // Write a source file whose checksum will differ from the one saved in the report
+    Files.writeString(sourceRoot.resolve("Drifted.java"), "public class Drifted { }");
     Path jsonFile = tempDir.resolve("report.json");
-    // Mock existing report with a checksum
     Files.writeString(
         jsonFile,
         "{\"files\":[{\"path\":\"Drifted.java\", \"counts\":{\"1\":10}, \"checksum\":\"OLD\"}]}");
@@ -373,10 +374,9 @@ class ReportGeneratorTest {
 
     try {
       logger.addHandler(handler);
-      // Set current checksum to something different
-      ExecutionCountStore.recordChecksum("Drifted", "NEW");
+      ExecutionCountStore.reset();
 
-      ReportGenerator.rehydrate(jsonFile.toString());
+      ReportGenerator.rehydrate(jsonFile.toString(), sourceRoot.toString());
 
       assertTrue(
           warnings.stream().anyMatch(m -> m.contains("Source drift detected for Drifted")),
@@ -390,7 +390,7 @@ class ReportGeneratorTest {
   @Test
   void testRehydrateFromNonExistentFile() {
     // Should just return silently
-    ReportGenerator.rehydrate("non-existent.json");
+    ReportGenerator.rehydrate("non-existent.json", "");
   }
 
   private void deleteRecursive(File file) {

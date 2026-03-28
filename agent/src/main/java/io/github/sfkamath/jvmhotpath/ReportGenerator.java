@@ -62,33 +62,50 @@ public final class ReportGenerator {
   }
 
   /** Loads an existing report JSON and seeds the ExecutionCountStore. */
-  public static void rehydrate(String jsonPath) {
+  public static void rehydrate(String jsonPath, String sourcePath) {
     try {
       Path path = Path.of(jsonPath);
       if (!Files.exists(path)) {
         return;
       }
       ReportPayload payload = readPayload(jsonPath);
+      List<SourceRoot> roots = parseSourceRoots(sourcePath);
       if (payload.files != null) {
         for (FileData file : payload.files) {
           String className = file.getPath().replace('/', '.').replace(".java", "");
-          boolean seeded =
-              ExecutionCountStore.seedCounts(className, file.getChecksum(), file.getCounts());
 
-          if (!seeded && file.getCounts() != null && !file.getCounts().isEmpty()) {
-            String current = ExecutionCountStore.getChecksum(className);
-            if (current != null && !current.equals(file.getChecksum())) {
-              logger.warning(
-                  "[APPEND] Source drift detected for "
-                      + className
-                      + ". Java file has changed since last run; previous counts for this file will be ignored.");
-            }
+          String currentChecksum = computeCurrentChecksum(roots, file.getPath());
+          if (currentChecksum != null && !currentChecksum.equals(file.getChecksum())) {
+            logger.warning(
+                "[APPEND] Source drift detected for "
+                    + className
+                    + ". Java file has changed since last run; previous counts for this file will be ignored.");
+            continue;
           }
+
+          ExecutionCountStore.seedCounts(className, file.getChecksum(), file.getCounts());
         }
       }
     } catch (Exception e) {
       logger.log(Level.WARNING, "Failed to rehydrate existing report: " + e.getMessage());
     }
+  }
+
+  private static String computeCurrentChecksum(List<SourceRoot> roots, String relativePath) {
+    String filename = Path.of(relativePath).getFileName().toString();
+    for (SourceRoot root : roots) {
+      try {
+        Optional<String> content =
+            root.isArchive()
+                ? findInArchive(root.path(), relativePath, filename)
+                : findInDirectory(root.path(), relativePath, filename);
+        if (content.isPresent()) {
+          return calculateChecksum(content.get());
+        }
+      } catch (IOException ignored) {
+      }
+    }
+    return null;
   }
 
   static List<FileData> collectData(String sourcePath, boolean verbose) throws IOException {

@@ -22,12 +22,15 @@ import org.gradle.process.JavaForkOptions;
  */
 public class JvmHotpathPlugin implements Plugin<Project> {
 
+  /** Creates a new instance of the plugin. */
+  public JvmHotpathPlugin() {}
+
   @Override
   public void apply(Project project) {
     JvmHotpathExtension extension =
         project.getExtensions().create("jvmHotpath", JvmHotpathExtension.class);
 
-    configureDefaults(extension);
+    configureDefaults(project, extension);
 
     Configuration agentConfig = project.getConfigurations().create("jvmHotpathAgent");
     String agentVersion = loadPluginVersion();
@@ -101,17 +104,28 @@ public class JvmHotpathPlugin implements Plugin<Project> {
         });
   }
 
-  private void configureDefaults(JvmHotpathExtension extension) {
-    extension.getPackages().convention("");
-    extension.getExclude().convention("");
-    extension.getFlushInterval().convention(0);
-    extension.getOutput().convention("");
-    extension.getSourcepath().convention("");
-    extension.getVerbose().convention(false);
-    extension.getKeepAlive().convention(false);
-    extension.getAppend().convention(false);
-    extension.getInstrumentTests().convention(false);
-    extension.getSkip().convention(false);
+  private void configureDefaults(Project project, JvmHotpathExtension extension) {
+    var providers = project.getProviders();
+    extension.getPackages().convention(
+        providers.systemProperty("jvm-hotpath.packages").orElse(""));
+    extension.getExclude().convention(
+        providers.systemProperty("jvm-hotpath.exclude").orElse(""));
+    extension.getFlushInterval().convention(
+        providers.systemProperty("jvm-hotpath.flushInterval").map(Integer::parseInt).orElse(0));
+    extension.getOutput().convention(
+        providers.systemProperty("jvm-hotpath.output").orElse(""));
+    extension.getSourcepath().convention(
+        providers.systemProperty("jvm-hotpath.sourcepath").orElse(""));
+    extension.getVerbose().convention(
+        providers.systemProperty("jvm-hotpath.verbose").map(Boolean::parseBoolean).orElse(false));
+    extension.getKeepAlive().convention(
+        providers.systemProperty("jvm-hotpath.keepAlive").map(Boolean::parseBoolean).orElse(false));
+    extension.getAppend().convention(
+        providers.systemProperty("jvm-hotpath.append").map(Boolean::parseBoolean).orElse(false));
+    extension.getInstrumentTests().convention(
+        providers.systemProperty("jvm-hotpath.instrumentTests").map(Boolean::parseBoolean).orElse(false));
+    extension.getSkip().convention(
+        providers.systemProperty("jvm-hotpath.skip").map(Boolean::parseBoolean).orElse(false));
   }
 
   private File resolveAgentJar(FileCollection classpath) {

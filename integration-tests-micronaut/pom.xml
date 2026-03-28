@@ -28,6 +28,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.dizitart</groupId>
+            <artifactId>nitrite</artifactId>
+            <version>4.3.2</version>
+        </dependency>
+        <dependency>
             <groupId>io.micronaut</groupId>
             <artifactId>micronaut-http-server-netty</artifactId>
             <version>${micronaut.version}</version>
@@ -82,7 +87,9 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <packages>io.github.sfkamath.jvmhotpath.sample.micronaut</packages>
+                    <packages>io.github.sfkamath.jvmhotpath.sample.micronaut,org.dizitart.no2</packages>
+                    <sourcepath>src/main/java:/Users/sfk/Developer/nitrite-java/nitrite/src/main/java</sourcepath>
+                    <verbose>true</verbose>
                     <flushInterval>0</flushInterval>
                     <mainClass>io.github.sfkamath.jvmhotpath.sample.micronaut.MainClassProbe</mainClass>
                     <instrumentTests>true</instrumentTests>
