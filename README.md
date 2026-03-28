@@ -110,7 +110,7 @@ Kotlin DSL (`build.gradle.kts`):
 ```kotlin
 plugins {
     java
-    id("io.github.sfkamath.jvm-hotpath") version "0.2.7"
+    id("io.github.sfkamath.jvm-hotpath") version "0.2.8"
 }
 
 jvmHotpath {
@@ -124,7 +124,7 @@ Groovy DSL (`build.gradle`):
 ```groovy
 plugins {
     id 'java'
-    id 'io.github.sfkamath.jvm-hotpath' version '0.2.7'
+    id 'io.github.sfkamath.jvm-hotpath' version '0.2.8'
 }
 
 jvmHotpath {
@@ -153,7 +153,7 @@ Add this `instrument` profile to your `pom.xml`:
             <plugin>
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
-                <version>0.2.7</version>
+                <version>0.2.8</version>
                 <executions>
                     <execution>
                         <goals>
@@ -241,6 +241,58 @@ jvmHotpath {
     skip.set(false)
 }
 ```
+
+<a id="jmh-integration"></a>
+### JMH Integration (Gradle)
+
+JMH spawns isolated forked JVMs for each benchmark iteration. The jvm-hotpath plugin does not auto-configure these forks — you need to inject the agent manually into the `jmh` task's `jvmArgsAppend`.
+
+> **Note:** If your JMH setup uses an ASM version too old for your JDK, the plugin will warn at configuration time. See [Resolving the ASM version conflict](#resolving-the-asm-version-conflict) below.
+
+**Step 1 — Inject the agent into JMH forks**
+
+Add the following to your `build.gradle` (Groovy DSL). The agent JAR is available via the `jvmHotpathAgent` configuration that the plugin creates:
+
+```groovy
+afterEvaluate {
+    def agentJar = configurations.jvmHotpathAgent.files
+        .find { it.name.startsWith('jvm-hotpath-agent') && it.name.endsWith('.jar') }
+        .absolutePath
+    def args = [
+        "packages=com.example",
+        "sourcepath=src/main/java",
+        "append=true",
+        "flushInterval=1",
+        "output=${layout.buildDirectory.get().asFile.absolutePath}/jvm-hotpath/execution-report.html"
+    ].join(',')
+    tasks.named("jmh").configure {
+        jvmArgsAppend = ["-javaagent:${agentJar}=${args}"]
+    }
+}
+```
+
+Two settings are critical for JMH forks:
+- **`append=true`** — each fork appends its counts to the same file rather than overwriting it
+- **`flushInterval=1`** — flushes data to disk every second, ensuring counts survive when the fork is killed after each iteration
+
+<a id="resolving-the-asm-version-conflict"></a>
+**Step 2 — Resolve the ASM version conflict**
+
+JMH bundles its own (older) copy of ASM. When the jvm-hotpath agent attempts to instrument Java 17+ bytecode inside a fork, it picks up JMH's ASM and crashes with `Unsupported class file major version`. Fix this by forcing a newer ASM version into the `jmh` dependency configuration:
+
+```groovy
+dependencies {
+    jmh 'org.ow2.asm:asm:9.9.1'
+    jmh 'org.ow2.asm:asm-tree:9.9.1'
+    jmh 'org.ow2.asm:asm-analysis:9.9.1'
+    jmh 'org.ow2.asm:asm-commons:9.9.1'
+    jmh 'org.ow2.asm:asm-util:9.9.1'
+}
+```
+
+**Step 3 — Analyse the results**
+
+Because JMH runs many iterations across many forks, the HTML report can be large. Use the `jq` query from [CLI Analysis with jq](#cli-analysis-with-jq) to find the hottest lines directly from the terminal.
 
 ### Maven Plugin Workflow
 
@@ -341,15 +393,15 @@ To ensure data integrity, the agent calculates a CRC32 checksum for every source
 Download the agent from Maven Central:
 
 ```bash
-wget https://repo1.maven.org/maven2/io/github/sfkamath/jvm-hotpath-agent/0.2.7/jvm-hotpath-agent-0.2.7.jar
-export PATH_TO_AGENT_JAR="$PWD/jvm-hotpath-agent-0.2.7.jar"
+wget https://repo1.maven.org/maven2/io/github/sfkamath/jvm-hotpath-agent/0.2.8/jvm-hotpath-agent-0.2.8.jar
+export PATH_TO_AGENT_JAR="$PWD/jvm-hotpath-agent-0.2.8.jar"
 ```
 
 Or build locally:
 
 ```bash
 mvn clean package -DskipTests
-export PATH_TO_AGENT_JAR="$PWD/agent/target/jvm-hotpath-agent-0.2.7.jar"
+export PATH_TO_AGENT_JAR="$PWD/agent/target/jvm-hotpath-agent-0.2.8.jar"
 ```
 
 Run with single-source config:
@@ -443,6 +495,39 @@ If you have a saved `execution-report.json` file and want to regenerate the HTML
 java -jar ${PATH_TO_AGENT_JAR} --data=target/site/jvm-hotpath/execution-report.json --output=target/site/jvm-hotpath/new-report.html
 ```
 
+<a id="cli-analysis-with-jq"></a>
+### CLI Analysis with jq
+
+The `execution-report.json` is machine-readable and works well with `jq` for instant terminal-based analysis — useful when the HTML report is large (e.g. after a JMH run with many benchmark forks) or when you want to script hotspot detection in CI.
+
+**Top 20 hottest lines across all files:**
+
+```bash
+jq '[.files[] | select((.counts | length) > 0) | {path: .path, counts: .counts | to_entries} | .counts[] as $c | {file: .path, line: $c.key|tonumber, hits: $c.value}] | sort_by(.hits) | reverse | .[0:20]' path/to/execution-report.json
+```
+
+Example output:
+
+```json
+[
+  { "file": "com/example/OrderService.java", "line": 42, "hits": 19147293 },
+  { "file": "com/example/OrderService.java", "line": 43, "hits": 19147293 },
+  ...
+]
+```
+
+**How the query works:**
+
+| Step | Expression | Purpose |
+|------|-----------|---------|
+| 1 | `.files[] \| select((.counts \| length) > 0)` | Skips files with no recorded executions |
+| 2 | `{path: .path, counts: .counts \| to_entries}` | Converts the `{"lineNumber": hitCount}` map into a `[{key, value}]` array |
+| 3 | `.counts[] as $c \| {file: .path, line: $c.key\|tonumber, hits: $c.value}` | Flattens to one object per line |
+| 4 | `sort_by(.hits) \| reverse` | Hottest lines first |
+| 5 | `.[0:20]` | Top 20 only |
+
+> **Tip:** Run `./gradlew hotpathHelp` to print this query with your project's report path.
+
 ## Development
 
 - **Development JDK:** Java 21
@@ -456,7 +541,7 @@ To build the agent JAR (shaded with all dependencies):
 mvn clean package -DskipTests
 ```
 
-The resulting JAR will be at `agent/target/jvm-hotpath-agent-0.2.7.jar`.
+The resulting JAR will be at `agent/target/jvm-hotpath-agent-0.2.8.jar`.
 
 > **Frontend build:** The report UI lives in `report-ui/` and is bundled via Vite. `mvn clean package` runs `frontend-maven-plugin` to execute `npm install`/`npm run build` inside that folder before packaging, producing a browser-safe `report-app.js` (IIFE bundle). When iterating on the UI you can run `npm install && npm run build` manually from `report-ui/` to refresh the bundled asset.
 

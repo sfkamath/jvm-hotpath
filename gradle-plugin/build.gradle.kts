@@ -10,7 +10,7 @@ val rootProps = Properties()
 rootProps.load(file("../gradle.properties").inputStream())
 
 group = "io.github.sfkamath"
-val pluginVersion = (findProperty("pluginVersion") as String?) ?: (rootProps["pluginVersion"] as String)
+val pluginVersion = ( findProperty("pluginVersion") asString?) ?: ( rootProps["pluginVersion"] asString)
 version = pluginVersion
 
 repositories {
@@ -20,6 +20,12 @@ repositories {
 
 dependencies {
     implementation("io.github.sfkamath:jvm-hotpath-agent:${version}")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.14.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 gradlePlugin {

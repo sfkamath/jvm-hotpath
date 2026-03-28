@@ -9,7 +9,7 @@ val rootProps = Properties()
 rootProps.load(file("../gradle.properties").inputStream())
 
 group = "io.github.sfkamath"
-version = rootProps["pluginVersion"] as String
+version =  rootProps["pluginVersion"] asString
 
 repositories {
     mavenCentral()
@@ -25,6 +25,7 @@ dependencies {
     implementation(platform("io.micronaut.platform:micronaut-platform:4.10.9"))
 
     implementation("io.github.sfkamath:jvm-hotpath-agent:${version}")
+    implementation("org.dizitart:nitrite:4.3.2")
     implementation("io.micronaut:micronaut-http-server-netty")
     implementation("io.micronaut:micronaut-jackson-databind")
     implementation("io.micronaut:micronaut-inject")
@@ -49,7 +50,7 @@ project.afterEvaluate {
     dependencies.add(agentConfig.name, "io.github.sfkamath:jvm-hotpath-agent:${version}")
 
     val agentJar = agentConfig.files.first { it.name.startsWith("jvm-hotpath-agent") }
-    val agentArgs = "packages=io.github.sfkamath.jvmhotpath.sample.micronaut,output=${layout.buildDirectory.get()}/site/jvm-hotpath/execution-report.html"
+    val agentArgs = "packages=io.github.sfkamath.jvmhotpath.sample.micronaut,org.dizitart,verbose=true,sourcepath=/Users/sfk/Developer/nitrite-java/nitrite/src/main/java,output=${layout.buildDirectory.get()}/site/jvm-hotpath/execution-report.html"
 
     tasks.withType<Test> {
         jvmArgs("-javaagent:${agentJar}=${agentArgs}")

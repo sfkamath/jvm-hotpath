@@ -14,8 +14,8 @@
     <artifactId>jvm-hotpath-integration-tests-micronaut</artifactId>
 
     <properties>
-        <micronaut.version>4.10.15</micronaut.version>
-        <micronaut-test.version>4.10.2</micronaut-test.version>
+        <micronaut.version>4.10.18</micronaut.version>
+        <micronaut-test.version>4.10.3</micronaut-test.version>
         <jakarta-annotation.version>2.1.1</jakarta-annotation.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <maven.install.skip>true</maven.install.skip>
@@ -26,6 +26,18 @@
             <groupId>io.github.sfkamath</groupId>
             <artifactId>jvm-hotpath-agent</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.dizitart</groupId>
+            <artifactId>nitrite</artifactId>
+            <version>4.3.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dizitart</groupId>
+            <artifactId>nitrite</artifactId>
+            <version>4.3.2</version>
+            <classifier>sources</classifier>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>io.micronaut</groupId>
@@ -72,6 +84,19 @@
                 </configuration>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>resolve-nitrite-sources</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
                 <executions>
@@ -82,7 +107,9 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <packages>io.github.sfkamath.jvmhotpath.sample.micronaut</packages>
+                    <packages>io.github.sfkamath.jvmhotpath.sample.micronaut,org.dizitart.no2</packages>
+                    <sourcepath>src/main/java:${org.dizitart:nitrite:jar:sources}</sourcepath>
+                    <verbose>false</verbose>
                     <flushInterval>0</flushInterval>
                     <mainClass>io.github.sfkamath.jvmhotpath.sample.micronaut.MainClassProbe</mainClass>
                     <instrumentTests>true</instrumentTests>

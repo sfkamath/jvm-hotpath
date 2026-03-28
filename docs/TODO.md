@@ -3,11 +3,12 @@ Status: ⚠️ in progress
 Date: 2026-02-01
 
 ## 🔴 Critical (Must Have)
-
+- ✅ **append mode**: drift detection was broken — `rehydrate()` ran before any checksums were recorded, so mismatched sources were always seeded. Fixed by passing `sourcePath` into `rehydrate()` and computing current checksums directly from source files at rehydration time.
 - ✅ **Self-contained build**: Shaded agent and independent parent POM.
 - ✅ **Fix live refresh**: Switched from JSONP to `fetch()` with pure JSON for HTTP loads.
 - ✅ **Standardized Logging**: Replaced `System.out` with `java.util.logging`.
 - ✅ **Framework Stability**: Verified Micronaut/Netty doesn't crash during instrumentation.
+- ✅ **Silent instrumentation gaps**: Classes loaded via `ClassWriter.COMPUTE_FRAMES` → `getCommonSuperClass()` → `Class.forName()` were silently skipped due to JVM re-entrancy protection. Fixed by overriding `getCommonSuperClass` to read class bytes via `ClassLoader.getResourceAsStream()` instead of loading classes.
 - ✅ **Maven Central publishing setup**:
     - ✅ Verify io.github.sfkamath on Central Portal.
     - ✅ Configure GPG signing plugin in `pom.xml` (via `ossrh` profile).
