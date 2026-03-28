@@ -49,9 +49,9 @@ jobs:
       - name: Build with Maven
         run: |
           if [ "${{ matrix.java }}" = "21" ]; then
-            mvn clean install -Pquality
+            mvn clean install -ntp -Pquality
           else
-            mvn clean install
+            mvn clean install -ntp
           fi
 
   publish:
