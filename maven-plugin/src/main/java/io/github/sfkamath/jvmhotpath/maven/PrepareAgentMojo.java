@@ -428,10 +428,10 @@ public class PrepareAgentMojo extends AbstractMojo {
   }
 
   /**
-   * Checks whether JMH is on the project's classpath and, if so, whether its bundled ASM version
-   * is too old for the running JVM. JMH ships its own ASM copy; if it predates support for the
-   * current Java class file format, the agent will throw "Unsupported class file major version"
-   * inside benchmark forks.
+   * Checks whether JMH is on the project's classpath and, if so, whether its bundled ASM version is
+   * too old for the running JVM. JMH ships its own ASM copy; if it predates support for the current
+   * Java class file format, the agent will throw "Unsupported class file major version" inside
+   * benchmark forks.
    */
   private void warnIfJmhAsmIncompatible() {
     boolean hasJmh = false;
@@ -442,8 +442,7 @@ public class PrepareAgentMojo extends AbstractMojo {
           && "jmh-core".equals(artifact.getArtifactId())) {
         hasJmh = true;
       }
-      if ("org.ow2.asm".equals(artifact.getGroupId())
-          && "asm".equals(artifact.getArtifactId())) {
+      if ("org.ow2.asm".equals(artifact.getGroupId()) && "asm".equals(artifact.getArtifactId())) {
         asmVersion = artifact.getVersion();
       }
     }
@@ -456,19 +455,27 @@ public class PrepareAgentMojo extends AbstractMojo {
     int currentJava = Runtime.version().feature();
 
     if (maxJava >= 0 && currentJava > maxJava) {
-      getLog().warn(
-          "[jvm-hotpath] JMH is using ASM " + asmVersion + " (supports up to Java " + maxJava
-              + ") but you are running Java " + currentJava + ". The jvm-hotpath agent will throw"
-              + " 'Unsupported class file major version' inside JMH benchmark forks."
-              + " Add ASM 9." + (currentJava - 16) + "+ to your jmh dependencies"
-              + " — see https://github.com/sfkamath/jvm-hotpath#jmh-integration");
+      getLog()
+          .warn(
+              "[jvm-hotpath] JMH is using ASM "
+                  + asmVersion
+                  + " (supports up to Java "
+                  + maxJava
+                  + ") but you are running Java "
+                  + currentJava
+                  + ". The jvm-hotpath agent will throw"
+                  + " 'Unsupported class file major version' inside JMH benchmark forks."
+                  + " Add ASM 9."
+                  + (currentJava - 16)
+                  + "+ to your jmh dependencies"
+                  + " — see https://github.com/sfkamath/jvm-hotpath#jmh-integration");
     }
   }
 
   /**
-   * Returns the maximum Java version supported by the given ASM version, or -1 if unparseable.
-   * ASM 9.x supports Java (16 + minor): e.g. 9.0 → 16, 9.1 → 17, 9.5 → 21.
-   * Pre-9.x ASM supports at most Java 15.
+   * Returns the maximum Java version supported by the given ASM version, or -1 if unparseable. ASM
+   * 9.x supports Java (16 + minor): e.g. 9.0 → 16, 9.1 → 17, 9.5 → 21. Pre-9.x ASM supports at most
+   * Java 15.
    */
   static int maxJavaSupportedByAsm(String asmVersion) {
     String[] parts = asmVersion.split("\\.");

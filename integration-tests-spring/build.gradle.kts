@@ -11,7 +11,7 @@ val rootProps = Properties()
 rootProps.load(file("../gradle.properties").inputStream())
 
 group = "io.github.sfkamath"
-version = rootProps["pluginVersion"] as String
+version =  rootProps["pluginVersion"] asString
 
 repositories {
     mavenCentral()

@@ -48,6 +48,7 @@ public class ExecutionCountClassVisitor extends ClassVisitor {
   private static class ExecutionCountMethodVisitor extends MethodVisitor {
 
     private final String className;
+
     /**
      * Line number deferred from visitLineNumber, waiting to be emitted after any stackmap frame
      * that may follow at the same bytecode position. -1 means no counter is pending.
@@ -73,8 +74,7 @@ public class ExecutionCountClassVisitor extends ClassVisitor {
     }
 
     @Override
-    public void visitFrame(
-        int type, int numLocal, Object[] local, int numStack, Object[] stack) {
+    public void visitFrame(int type, int numLocal, Object[] local, int numStack, Object[] stack) {
       super.visitFrame(type, numLocal, local, numStack, stack);
       // Emit pending counter AFTER the frame so it doesn't displace the frame's bytecode offset.
       emitPendingCounter();

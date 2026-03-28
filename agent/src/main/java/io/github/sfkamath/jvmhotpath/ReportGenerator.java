@@ -92,7 +92,18 @@ public final class ReportGenerator {
   }
 
   private static String computeCurrentChecksum(List<SourceRoot> roots, String relativePath) {
-    String filename = Path.of(relativePath).getFileName().toString();
+    if (relativePath == null || relativePath.isEmpty()) {
+      return null;
+    }
+    Path filePath = Path.of(relativePath);
+    if (filePath == null) {
+      return null;
+    }
+    Path fileName = filePath.getFileName();
+    if (fileName == null) {
+      return null;
+    }
+    String filename = fileName.toString();
     for (SourceRoot root : roots) {
       try {
         Optional<String> content =
@@ -100,7 +111,7 @@ public final class ReportGenerator {
                 ? findInArchive(root.path(), relativePath, filename)
                 : findInDirectory(root.path(), relativePath, filename);
         if (content.isPresent()) {
-          return calculateChecksum(content.get());
+          return calculateChecksum(content.orElseThrow());
         }
       } catch (IOException ignored) {
       }

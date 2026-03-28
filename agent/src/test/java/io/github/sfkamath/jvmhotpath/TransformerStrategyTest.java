@@ -38,9 +38,7 @@ class TransformerStrategyTest {
 
   // ── Bytecode generation helpers ─────────────────────────────────────────────
 
-  /**
-   * Abstract {@code fixture.Base} class that TypeA and TypeB extend.
-   */
+  /** Abstract {@code fixture.Base} class that TypeA and TypeB extend. */
   private byte[] generateBase() {
     ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
     cw.visit(
@@ -130,8 +128,7 @@ class TransformerStrategyTest {
           }
         };
 
-    cw.visit(
-        Opcodes.V11, Opcodes.ACC_PUBLIC, "fixture/Subject", null, "java/lang/Object", null);
+    cw.visit(Opcodes.V11, Opcodes.ACC_PUBLIC, "fixture/Subject", null, "java/lang/Object", null);
 
     // Constructor
     MethodVisitor init = cw.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
@@ -144,12 +141,11 @@ class TransformerStrategyTest {
 
     // Base pick(boolean flag)
     // locals: this(0), flag(1), result(2)
-    MethodVisitor mv =
-        cw.visitMethod(Opcodes.ACC_PUBLIC, "pick", "(Z)Lfixture/Base;", null, null);
+    MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "pick", "(Z)Lfixture/Base;", null, null);
     mv.visitCode();
 
     Label branchFalse = new Label(); // TypeB branch
-    Label merge = new Label();       // return point
+    Label merge = new Label(); // return point
 
     // Line 10: evaluate condition and take TypeA branch
     Label l10 = new Label();
@@ -188,8 +184,8 @@ class TransformerStrategyTest {
   // ── ClassLoader ─────────────────────────────────────────────────────────────
 
   /**
-   * ClassLoader that serves fixture classes from in-memory byte arrays. Exposes
-   * {@link #defineSubject(byte[])} so the test can inject instrumented bytes for Subject.
+   * ClassLoader that serves fixture classes from in-memory byte arrays. Exposes {@link
+   * #defineSubject(byte[])} so the test can inject instrumented bytes for Subject.
    */
   private static class FixtureClassLoader extends ClassLoader {
 
@@ -301,8 +297,7 @@ class TransformerStrategyTest {
     cw.toByteArray();
 
     assertFalse(
-        queried.get(),
-        "COMPUTE_MAXS must not call getCommonSuperClass during instrumentation");
+        queried.get(), "COMPUTE_MAXS must not call getCommonSuperClass during instrumentation");
   }
 
   /**
@@ -343,18 +338,17 @@ class TransformerStrategyTest {
     Object instance = subjectClass.getDeclaredConstructor().newInstance();
 
     Method pick = subjectClass.getMethod("pick", boolean.class);
-    pick.invoke(instance, true);  // call 1: TypeA branch
-    pick.invoke(instance, true);  // call 2: TypeA branch
+    pick.invoke(instance, true); // call 1: TypeA branch
+    pick.invoke(instance, true); // call 2: TypeA branch
     pick.invoke(instance, false); // call 3: TypeB branch
 
     // Line 10 (condition + TypeA branch): executed on all 3 calls
-    assertEquals(3, ExecutionCountStore.getCount("fixture.Subject", 10),
-        "condition line hit on every call");
+    assertEquals(
+        3, ExecutionCountStore.getCount("fixture.Subject", 10), "condition line hit on every call");
     // Line 13 (TypeB branch): only the third call
-    assertEquals(1, ExecutionCountStore.getCount("fixture.Subject", 13),
-        "TypeB branch hit once");
+    assertEquals(1, ExecutionCountStore.getCount("fixture.Subject", 13), "TypeB branch hit once");
     // Line 16 (return / merge): every call
-    assertEquals(3, ExecutionCountStore.getCount("fixture.Subject", 16),
-        "return line hit on every call");
+    assertEquals(
+        3, ExecutionCountStore.getCount("fixture.Subject", 16), "return line hit on every call");
   }
 }

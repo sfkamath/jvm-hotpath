@@ -106,26 +106,48 @@ public class JvmHotpathPlugin implements Plugin<Project> {
 
   private void configureDefaults(Project project, JvmHotpathExtension extension) {
     var providers = project.getProviders();
-    extension.getPackages().convention(
-        providers.systemProperty("jvm-hotpath.packages").orElse(""));
-    extension.getExclude().convention(
-        providers.systemProperty("jvm-hotpath.exclude").orElse(""));
-    extension.getFlushInterval().convention(
-        providers.systemProperty("jvm-hotpath.flushInterval").map(Integer::parseInt).orElse(0));
-    extension.getOutput().convention(
-        providers.systemProperty("jvm-hotpath.output").orElse(""));
-    extension.getSourcepath().convention(
-        providers.systemProperty("jvm-hotpath.sourcepath").orElse(""));
-    extension.getVerbose().convention(
-        providers.systemProperty("jvm-hotpath.verbose").map(Boolean::parseBoolean).orElse(false));
-    extension.getKeepAlive().convention(
-        providers.systemProperty("jvm-hotpath.keepAlive").map(Boolean::parseBoolean).orElse(false));
-    extension.getAppend().convention(
-        providers.systemProperty("jvm-hotpath.append").map(Boolean::parseBoolean).orElse(false));
-    extension.getInstrumentTests().convention(
-        providers.systemProperty("jvm-hotpath.instrumentTests").map(Boolean::parseBoolean).orElse(false));
-    extension.getSkip().convention(
-        providers.systemProperty("jvm-hotpath.skip").map(Boolean::parseBoolean).orElse(false));
+    extension.getPackages().convention(providers.systemProperty("jvm-hotpath.packages").orElse(""));
+    extension.getExclude().convention(providers.systemProperty("jvm-hotpath.exclude").orElse(""));
+    extension
+        .getFlushInterval()
+        .convention(
+            providers.systemProperty("jvm-hotpath.flushInterval").map(Integer::parseInt).orElse(0));
+    extension.getOutput().convention(providers.systemProperty("jvm-hotpath.output").orElse(""));
+    extension
+        .getSourcepath()
+        .convention(providers.systemProperty("jvm-hotpath.sourcepath").orElse(""));
+    extension
+        .getVerbose()
+        .convention(
+            providers
+                .systemProperty("jvm-hotpath.verbose")
+                .map(Boolean::parseBoolean)
+                .orElse(false));
+    extension
+        .getKeepAlive()
+        .convention(
+            providers
+                .systemProperty("jvm-hotpath.keepAlive")
+                .map(Boolean::parseBoolean)
+                .orElse(false));
+    extension
+        .getAppend()
+        .convention(
+            providers
+                .systemProperty("jvm-hotpath.append")
+                .map(Boolean::parseBoolean)
+                .orElse(false));
+    extension
+        .getInstrumentTests()
+        .convention(
+            providers
+                .systemProperty("jvm-hotpath.instrumentTests")
+                .map(Boolean::parseBoolean)
+                .orElse(false));
+    extension
+        .getSkip()
+        .convention(
+            providers.systemProperty("jvm-hotpath.skip").map(Boolean::parseBoolean).orElse(false));
   }
 
   private File resolveAgentJar(FileCollection classpath) {
@@ -269,12 +291,12 @@ public class JvmHotpathPlugin implements Plugin<Project> {
 
   /**
    * When JMH is present, resolves its runtime classpath to find the bundled ASM version and warns
-   * if it is too old to instrument the current JVM's class file format. JMH ships its own ASM
-   * copy; if it is older than what the running JDK requires, the agent will throw
-   * "Unsupported class file major version" inside benchmark forks.
+   * if it is too old to instrument the current JVM's class file format. JMH ships its own ASM copy;
+   * if it is older than what the running JDK requires, the agent will throw "Unsupported class file
+   * major version" inside benchmark forks.
    *
-   * <p>ASM 9.x support matrix: minor version N supports up to Java (16 + N).
-   * e.g. ASM 9.0 → Java 16, ASM 9.1 → Java 17, ASM 9.5 → Java 21.
+   * <p>ASM 9.x support matrix: minor version N supports up to Java (16 + N). e.g. ASM 9.0 → Java
+   * 16, ASM 9.1 → Java 17, ASM 9.5 → Java 21.
    */
   private void warnIfJmhAsmIncompatible(Project project) {
     if (!project.getPlugins().hasPlugin("me.champeau.jmh")) {
@@ -305,24 +327,31 @@ public class JvmHotpathPlugin implements Plugin<Project> {
         int maxJava = maxJavaSupportedByAsm(version);
 
         if (maxJava >= 0 && currentJava > maxJava) {
-          project.getLogger().warn(
-              "[jvm-hotpath] JMH is using ASM {} (supports up to Java {}) but you are running"
-                  + " Java {}. The jvm-hotpath agent will throw 'Unsupported class file major"
-                  + " version' inside JMH benchmark forks. Force ASM 9.{}+ in your jmh"
-                  + " dependencies — see https://github.com/sfkamath/jvm-hotpath#jmh-integration",
-              version, maxJava, currentJava, (currentJava - 16));
+          project
+              .getLogger()
+              .warn(
+                  "[jvm-hotpath] JMH is using ASM {} (supports up to Java {}) but you are running"
+                      + " Java {}. The jvm-hotpath agent will throw 'Unsupported class file major"
+                      + " version' inside JMH benchmark forks. Force ASM 9.{}+ in your jmh"
+                      + " dependencies — see https://github.com/sfkamath/jvm-hotpath#jmh-integration",
+                  version,
+                  maxJava,
+                  currentJava,
+                  currentJava - 16);
         }
         return; // only need the core ASM jar
       }
     } catch (Exception e) {
-      project.getLogger().debug("[jvm-hotpath] Could not check JMH ASM compatibility: {}", e.getMessage());
+      project
+          .getLogger()
+          .debug("[jvm-hotpath] Could not check JMH ASM compatibility: {}", e.getMessage());
     }
   }
 
   /**
    * Returns the maximum Java version supported by the given ASM version string, or -1 if the
-   * version cannot be parsed. ASM 9.x supports Java (16 + minor): e.g. 9.0 → 16, 9.1 → 17.
-   * Pre-9.x ASM is treated as supporting at most Java 15.
+   * version cannot be parsed. ASM 9.x supports Java (16 + minor): e.g. 9.0 → 16, 9.1 → 17. Pre-9.x
+   * ASM is treated as supporting at most Java 15.
    */
   static int maxJavaSupportedByAsm(String asmVersion) {
     String[] parts = asmVersion.split("\\.");

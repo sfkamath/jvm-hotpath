@@ -278,5 +278,4 @@ class ExecutionCounterAgentTest {
       return false;
     }
   }
-
 }

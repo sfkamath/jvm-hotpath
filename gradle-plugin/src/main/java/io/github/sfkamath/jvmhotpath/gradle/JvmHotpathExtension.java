@@ -19,7 +19,8 @@ public interface JvmHotpathExtension {
   Property<String> getExclude();
 
   /**
-   * Interval in seconds at which the agent flushes the report to disk. 0 disables periodic flushing.
+   * Interval in seconds at which the agent flushes the report to disk. 0 disables periodic
+   * flushing.
    *
    * @return the flushInterval property
    */
