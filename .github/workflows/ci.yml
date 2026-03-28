@@ -46,6 +46,20 @@ jobs:
             mvn clean install -ntp
           fi
 
+      - name: Install agent to local Maven repo
+        if: matrix.java == 21
+        run: mvn install -pl agent -am -Drevision=0.0.0-test -DskipTests -ntp
+
+      - name: Setup Gradle
+        if: matrix.java == 21
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+
+      - name: Compile Gradle plugin
+        if: matrix.java == 21
+        run: cd gradle-plugin && ../gradlew classes --no-daemon -PpluginVersion=0.0.0-test
+
   publish:
     name: Publish to Maven Central
     needs: build
@@ -89,7 +103,7 @@ jobs:
 
       - name: Deploy to Maven Central
         run: |
-          mvn deploy -Drevision=${{ steps.tag_version.outputs.new_tag }} -Possrh -P!it -DskipTests -Dgpg.passphrase=${{ secrets.GPG_PASSPHRASE }}
+          mvn deploy -ntp -Drevision=${{ steps.tag_version.outputs.new_tag }} -Possrh -P!it -DskipTests -Dgpg.passphrase=${{ secrets.GPG_PASSPHRASE }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -118,7 +132,7 @@ jobs:
             maven-${{ runner.os }}-
 
       - name: Install agent to local Maven repo
-        run: mvn install -pl agent -am -Drevision=${{ needs.publish.outputs.version }} -DskipTests --quiet
+        run: mvn install -pl agent -am -Drevision=${{ needs.publish.outputs.version }} -DskipTests -ntp
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4

@@ -10,7 +10,9 @@ val rootProps = Properties()
 rootProps.load(file("../gradle.properties").inputStream())
 
 group = "io.github.sfkamath"
-val pluginVersion = ( findProperty("pluginVersion") asString?) ?: ( rootProps["pluginVersion"] asString)
+val pluginVersion = (findProperty("pluginVersion") as? String)
+    ?: (rootProps["pluginVersion"] as? String)
+    ?: error("pluginVersion not set in gradle.properties or project properties")
 version = pluginVersion
 
 repositories {
