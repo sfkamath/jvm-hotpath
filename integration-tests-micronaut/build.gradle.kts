@@ -9,7 +9,8 @@ val rootProps = Properties()
 rootProps.load(file("../gradle.properties").inputStream())
 
 group = "io.github.sfkamath"
-version = (rootProps["pluginVersion"] as? String) ?: "unknown"
+version = (rootProps["pluginVersion"] as? String)
+    ?: error("pluginVersion not set in gradle.properties")
 
 repositories {
     mavenCentral()

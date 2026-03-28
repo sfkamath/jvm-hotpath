@@ -46,6 +46,14 @@ jobs:
             mvn clean install -ntp
           fi
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+
+      - name: Compile Gradle plugin
+        run: cd gradle-plugin && ../gradlew classes --no-daemon -PpluginVersion=0.0.0-test
+
   publish:
     name: Publish to Maven Central
     needs: build
