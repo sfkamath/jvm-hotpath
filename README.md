@@ -110,7 +110,7 @@ Kotlin DSL (`build.gradle.kts`):
 ```kotlin
 plugins {
     java
-    id("io.github.sfkamath.jvm-hotpath") version "0.2.9"
+    id("io.github.sfkamath.jvm-hotpath") version "0.2.10"
 }
 
 jvmHotpath {
@@ -124,7 +124,7 @@ Groovy DSL (`build.gradle`):
 ```groovy
 plugins {
     id 'java'
-    id 'io.github.sfkamath.jvm-hotpath' version '0.2.9'
+    id 'io.github.sfkamath.jvm-hotpath' version '0.2.10'
 }
 
 jvmHotpath {
@@ -153,7 +153,7 @@ Add this `instrument` profile to your `pom.xml`:
             <plugin>
                 <groupId>io.github.sfkamath</groupId>
                 <artifactId>jvm-hotpath-maven-plugin</artifactId>
-                <version>0.2.9</version>
+                <version>0.2.10</version>
                 <executions>
                     <execution>
                         <goals>
@@ -393,15 +393,15 @@ To ensure data integrity, the agent calculates a CRC32 checksum for every source
 Download the agent from Maven Central:
 
 ```bash
-wget https://repo1.maven.org/maven2/io/github/sfkamath/jvm-hotpath-agent/0.2.9/jvm-hotpath-agent-0.2.9.jar
-export PATH_TO_AGENT_JAR="$PWD/jvm-hotpath-agent-0.2.9.jar"
+wget https://repo1.maven.org/maven2/io/github/sfkamath/jvm-hotpath-agent/0.2.10/jvm-hotpath-agent-0.2.10.jar
+export PATH_TO_AGENT_JAR="$PWD/jvm-hotpath-agent-0.2.10.jar"
 ```
 
 Or build locally:
 
 ```bash
 mvn clean package -DskipTests
-export PATH_TO_AGENT_JAR="$PWD/agent/target/jvm-hotpath-agent-0.2.9.jar"
+export PATH_TO_AGENT_JAR="$PWD/agent/target/jvm-hotpath-agent-0.2.10.jar"
 ```
 
 Run with single-source config:
@@ -541,7 +541,7 @@ To build the agent JAR (shaded with all dependencies):
 mvn clean package -DskipTests
 ```
 
-The resulting JAR will be at `agent/target/jvm-hotpath-agent-0.2.9.jar`.
+The resulting JAR will be at `agent/target/jvm-hotpath-agent-0.2.10.jar`.
 
 > **Frontend build:** The report UI lives in `report-ui/` and is bundled via Vite. `mvn clean package` runs `frontend-maven-plugin` to execute `npm install`/`npm run build` inside that folder before packaging, producing a browser-safe `report-app.js` (IIFE bundle). When iterating on the UI you can run `npm install && npm run build` manually from `report-ui/` to refresh the bundled asset.
 

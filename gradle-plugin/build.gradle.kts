@@ -52,11 +52,13 @@ java {
 
 val generatePluginProperties by tasks.registering {
     val outputDir = layout.buildDirectory.dir("generated/resources/plugin-properties")
+    val pluginVersionValue = project.version.toString()
+    inputs.property("version", pluginVersionValue)
     outputs.dir(outputDir)
     doLast {
         val dir = outputDir.get().asFile
         dir.mkdirs()
-        dir.resolve("jvm-hotpath-plugin.properties").writeText("version=${project.version}\n")
+        dir.resolve("jvm-hotpath-plugin.properties").writeText("version=${pluginVersionValue}\n")
     }
 }
 

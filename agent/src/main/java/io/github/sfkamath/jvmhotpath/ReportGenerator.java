@@ -95,21 +95,12 @@ public final class ReportGenerator {
     if (relativePath == null || relativePath.isEmpty()) {
       return null;
     }
-    Path filePath = Path.of(relativePath);
-    if (filePath == null) {
-      return null;
-    }
-    Path fileName = filePath.getFileName();
-    if (fileName == null) {
-      return null;
-    }
-    String filename = fileName.toString();
     for (SourceRoot root : roots) {
       try {
         Optional<String> content =
             root.isArchive()
-                ? findInArchive(root.path(), relativePath, filename)
-                : findInDirectory(root.path(), relativePath, filename);
+                ? findInArchive(root.path(), relativePath)
+                : findInDirectory(root.path(), relativePath);
         if (content.isPresent()) {
           return calculateChecksum(content.orElseThrow());
         }
@@ -220,13 +211,12 @@ public final class ReportGenerator {
       return SourceFile.missing(relativePath, fallbackProject(roots, relativePath));
     }
 
-    String filename = simpleClassName(className) + ".java";
     for (SourceRoot root : roots) {
       try {
         Optional<String> content =
             root.isArchive()
-                ? findInArchive(root.path(), relativePath, filename)
-                : findInDirectory(root.path(), relativePath, filename);
+                ? findInArchive(root.path(), relativePath)
+                : findInDirectory(root.path(), relativePath);
         if (content.isPresent()) {
           return new SourceFile(content.orElseThrow(), root.project());
         }
@@ -323,18 +313,19 @@ public final class ReportGenerator {
     return Long.toHexString(crc.getValue());
   }
 
-  private static Optional<String> findInDirectory(Path root, String relativePath, String filename)
+  private static Optional<String> findInDirectory(Path root, String relativePath)
       throws IOException {
     Path candidate = root.resolve(relativePath);
     if (Files.exists(candidate)) {
       return Optional.of(Files.readString(candidate));
     }
 
+    Path relPath = Path.of(relativePath);
     try (Stream<Path> walker = Files.walk(root)) {
       Optional<Path> found =
           walker
               .filter(Files::isRegularFile)
-              .filter(p -> filename.equals(p.getFileName().toString()))
+              .filter(p -> p.endsWith(relPath))
               .findFirst();
       if (found.isPresent()) {
         return Optional.of(Files.readString(found.orElseThrow()));
@@ -344,7 +335,7 @@ public final class ReportGenerator {
     return Optional.empty();
   }
 
-  private static Optional<String> findInArchive(Path archive, String relativePath, String filename)
+  private static Optional<String> findInArchive(Path archive, String relativePath)
       throws IOException {
     try (ZipFile zip = new ZipFile(archive.toFile())) {
       ZipEntry exact = zip.getEntry(normalizeArchiveEntryPath(relativePath));
@@ -358,7 +349,8 @@ public final class ReportGenerator {
         if (entry.isDirectory()) {
           continue;
         }
-        if (filename.equals(fileName(entry.getName()))) {
+        String entryPath = normalizeArchiveEntryPath(entry.getName());
+        if (entryPath.endsWith(relativePath)) {
           return Optional.of(readArchiveEntry(zip, entry));
         }
       }
@@ -379,12 +371,6 @@ public final class ReportGenerator {
       normalized = normalized.substring(1);
     }
     return normalized;
-  }
-
-  private static String fileName(String path) {
-    String normalized = normalizeArchiveEntryPath(path);
-    int idx = normalized.lastIndexOf('/');
-    return idx >= 0 ? normalized.substring(idx + 1) : normalized;
   }
 
   private static boolean isArchivePath(Path path) {
@@ -507,17 +493,6 @@ public final class ReportGenerator {
 
   static void resetReportLocationLogForTests() {
     reportLocationLogged.set(false);
-  }
-
-  private static String simpleClassName(String className) {
-    if (className == null || className.isEmpty()) {
-      return "Unknown";
-    }
-    int lastDot = className.lastIndexOf('.');
-    if (lastDot >= 0 && lastDot + 1 < className.length()) {
-      return className.substring(lastDot + 1);
-    }
-    return className;
   }
 
   private static final class SourceRoot {
