@@ -393,6 +393,53 @@ class ReportGeneratorTest {
     ReportGenerator.rehydrate("non-existent.json", "");
   }
 
+  /**
+   * Regression test: two source roots each contain a file named SpatialIndex.java but under
+   * different packages. Execution counts for org.dizitart.no2.index.SpatialIndex must be matched to
+   * the nitrite source file, not to the micronaut annotation that shares the same simple filename.
+   */
+  @Test
+  void testSameFilenameInDifferentPackagesIsNotConfused() throws IOException {
+    Path micronautRoot = Files.createTempDirectory("micronaut-src");
+    Path nitriteRoot = Files.createTempDirectory("nitrite-src");
+
+    try {
+      // Micronaut: io/micronaut/data/annotation/SpatialIndex.java
+      Path micronautFile =
+          micronautRoot.resolve("io/micronaut/data/annotation/SpatialIndex.java");
+      Files.createDirectories(micronautFile.getParent());
+      Files.writeString(micronautFile, "package io.micronaut.data.annotation; @interface SpatialIndex {}");
+
+      // Nitrite: org/dizitart/no2/index/SpatialIndex.java
+      Path nitriteFile = nitriteRoot.resolve("org/dizitart/no2/index/SpatialIndex.java");
+      Files.createDirectories(nitriteFile.getParent());
+      Files.writeString(nitriteFile, "package org.dizitart.no2.index; class SpatialIndex {}");
+
+      ExecutionCountStore.recordExecution("org.dizitart.no2.index.SpatialIndex", 42);
+
+      // Micronaut source is listed first — the old filename-only fallback would return it wrongly
+      String sourcePath =
+          micronautRoot.toAbsolutePath()
+              + File.pathSeparator
+              + nitriteRoot.toAbsolutePath();
+      List<ReportGenerator.FileData> data = ReportGenerator.collectData(sourcePath, false);
+
+      ReportGenerator.FileData nitriteData =
+          data.stream()
+              .filter(f -> "org/dizitart/no2/index/SpatialIndex.java".equals(f.getPath()))
+              .findFirst()
+              .orElseThrow(() -> new AssertionError("Nitrite SpatialIndex.java not found in report"));
+
+      assertEquals(1L, nitriteData.getCounts().get(42), "Counts must be on the nitrite SpatialIndex");
+      assertTrue(
+          nitriteData.getContent().contains("org.dizitart.no2.index"),
+          "Content should be from nitrite, not micronaut, but was: " + nitriteData.getContent());
+    } finally {
+      deleteRecursive(micronautRoot.toFile());
+      deleteRecursive(nitriteRoot.toFile());
+    }
+  }
+
   private void deleteRecursive(File file) {
     File[] children = file.listFiles();
     if (children != null) {
